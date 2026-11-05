@@ -10,9 +10,26 @@ import { placeholders } from './placeholders.js';
  * to load it falls back to the placeholder, so the site never breaks.
  *
  * Normalisation (same for both paths): scale so the largest dimension equals
- * `entry.fit`, centre on X/Z, put the bottom at y = 0, then apply the
- * configured rotation and position.
+ * `entry.fit`, centre on X/Z, put the bottom at y = 0, add a soft contact
+ * shadow under the footprint, then apply the configured rotation and position.
  */
+
+let shadowTexture = null;
+function getShadowTexture() {
+  if (shadowTexture) return shadowTexture;
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const ctx = c.getContext('2d');
+  const g = ctx.createRadialGradient(64, 64, 6, 64, 64, 64);
+  g.addColorStop(0, 'rgba(0,0,0,0.55)');
+  g.addColorStop(0.45, 'rgba(0,0,0,0.22)');
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 128, 128);
+  shadowTexture = new THREE.CanvasTexture(c);
+  return shadowTexture;
+}
+
 export function createModelLoader(manager) {
   const gltf = new GLTFLoader(manager);
   // gltf-transform `optimize` compresses geometry with meshopt by default.
@@ -53,10 +70,28 @@ export function createModelLoader(manager) {
     box.setFromObject(raw);
     const center = box.getCenter(new THREE.Vector3());
     raw.position.sub(new THREE.Vector3(center.x, box.min.y, center.z));
+    box.getSize(size);
+
+    // Soft ambient-occlusion blob under the footprint (cheap, reads as "grounded").
+    const contact = new THREE.Mesh(
+      new THREE.PlaneGeometry(1, 1),
+      new THREE.MeshBasicMaterial({ map: getShadowTexture(), transparent: true, depthWrite: false, opacity: 0.7 }),
+    );
+    contact.rotation.x = -Math.PI / 2;
+    contact.position.y = 0.0015;
+    contact.scale.set(size.x * 1.45, size.z * 1.45, 1);
+    contact.renderOrder = -1;
+    contact.raycast = () => {}; // never hover-pick the shadow blob
+
+    // `lift` holds the model so hover animations never fight the base position.
+    const lift = new THREE.Group();
+    lift.name = 'lift';
+    lift.add(raw);
 
     const holder = new THREE.Group();
     holder.name = entry.id;
-    holder.add(raw);
+    holder.userData.entry = entry;
+    holder.add(contact, lift);
     holder.position.fromArray(entry.position);
     holder.rotation.y = THREE.MathUtils.degToRad(entry.rotationY ?? 0);
     return holder;

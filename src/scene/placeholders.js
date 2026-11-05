@@ -7,6 +7,45 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 const mat = (color, opts = {}) =>
   new THREE.MeshStandardMaterial({ color, roughness: 0.55, metalness: 0.05, ...opts });
 
+/** Draws a fake "desktop" onto a canvas so the monitor looks switched on. */
+function screenTexture() {
+  const c = document.createElement('canvas');
+  c.width = 1024;
+  c.height = 576;
+  const ctx = c.getContext('2d');
+  const bg = ctx.createLinearGradient(0, 0, 1024, 576);
+  bg.addColorStop(0, '#15192b');
+  bg.addColorStop(1, '#2b3a7a');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, 1024, 576);
+  // window
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  ctx.beginPath();
+  ctx.roundRect(72, 64, 880, 448, 18);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.12)';
+  ctx.fillRect(72, 64, 880, 40);
+  for (let i = 0; i < 3; i++) {
+    ctx.fillStyle = ['#ff5f57', '#febc2e', '#28c840'][i];
+    ctx.beginPath();
+    ctx.arc(96 + i * 24, 84, 7, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // code lines
+  const widths = [220, 420, 360, 180, 480, 300, 260, 410, 150, 380];
+  widths.forEach((w, i) => {
+    ctx.fillStyle = i % 3 === 0 ? 'rgba(255,170,120,0.85)' : 'rgba(255,255,255,0.55)';
+    ctx.fillRect(110 + (i % 2) * 40, 140 + i * 34, w, 12);
+  });
+  // glowing cursor block
+  ctx.fillStyle = '#ffd6a5';
+  ctx.fillRect(150, 480, 14, 22);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  return tex;
+}
+
 function monitor() {
   const g = new THREE.Group();
   const dark = mat(0x22252b, { roughness: 0.4 });
@@ -16,9 +55,10 @@ function monitor() {
   neck.position.set(0, 0.09, -0.03);
   const body = new THREE.Mesh(new RoundedBoxGeometry(0.62, 0.36, 0.025, 3, 0.008), dark);
   body.position.set(0, 0.32, -0.02);
+  const tex = screenTexture();
   const screen = new THREE.Mesh(
     new THREE.PlaneGeometry(0.595, 0.335),
-    new THREE.MeshStandardMaterial({ color: 0x0b1020, emissive: 0x3557c9, emissiveIntensity: 0.55, roughness: 0.3 }),
+    new THREE.MeshStandardMaterial({ map: tex, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.9, roughness: 0.25 }),
   );
   screen.position.set(0, 0.32, -0.0065);
   g.add(base, neck, body, screen);
@@ -74,7 +114,7 @@ function phone() {
   body.position.y = 0.0045;
   const screen = new THREE.Mesh(
     new THREE.PlaneGeometry(0.068, 0.146),
-    new THREE.MeshStandardMaterial({ color: 0x0b1020, emissive: 0x7a5cff, emissiveIntensity: 0.35, roughness: 0.2 }),
+    new THREE.MeshStandardMaterial({ color: 0x0b1020, emissive: 0x7a5cff, emissiveIntensity: 0.45, roughness: 0.2 }),
   );
   screen.rotation.x = -Math.PI / 2;
   screen.position.y = 0.0092;

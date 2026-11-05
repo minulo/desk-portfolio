@@ -1,6 +1,6 @@
 # Cloud cost log
 
-Starting credit: ~$87 (provider: _TBD_, expires: _TBD_)
+Starting credit: ~$87 (provider: not stated; user reported on 2026-11-05 that it expires within minutes). Decision: credit NOT used, no GPU session; Fallback path (free Hugging Face Space + free static hosting).
 Stop-and-ask threshold: estimated remaining credit below $15.
 
 | # | Start (UTC) | End (UTC) | Provider / region | Instance type | GPU | Rate ($/h) | Hours | Est. cost | Deleted + verified empty? |
