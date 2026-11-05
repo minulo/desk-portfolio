@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Your Name — Portfolio</title>
+    <meta name="description" content="Portfolio of Your Name. Scroll across my desk." />
+  </head>
+  <body>
+    <div id="loader" role="progressbar" aria-label="Loading 3D scene" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <div class="loader-inner">
+        <p class="loader-title">Setting up the desk…</p>
+        <div class="loader-track"><div id="loader-bar"></div></div>
+        <p id="loader-pct">0%</p>
+      </div>
+    </div>
+
+    <canvas id="scene" aria-hidden="true"></canvas>
+
+    <nav class="dots" aria-label="Sections">
+      <a href="#intro" data-goto="intro" aria-label="Intro"></a>
+      <a href="#about" data-goto="about" aria-label="About"></a>
+      <a href="#projects" data-goto="projects" aria-label="Projects"></a>
+      <a href="#experience" data-goto="experience" aria-label="Experience"></a>
+      <a href="#contact" data-goto="contact" aria-label="Contact"></a>
+    </nav>
+
+    <main id="sections">
+      <section id="intro" data-stop="intro">
+        <div class="panel">
+          <p class="eyebrow">Hello, I'm</p>
+          <h1>Your Name</h1>
+          <p>Developer. Scroll to look around my desk. Each object opens a part of the story.</p>
+          <p class="hint" aria-hidden="true">Scroll ↓</p>
+        </div>
+      </section>
+
+      <section id="about" data-stop="about">
+        <div class="panel">
+          <p class="eyebrow">The mug · About</p>
+          <h2>About me</h2>
+          <p>A few sentences about who you are, what you care about and what you're looking for next.</p>
+        </div>
+      </section>
+
+      <section id="projects" data-stop="projects">
+        <div class="panel">
+          <p class="eyebrow">The monitor · Projects</p>
+          <h2>Projects</h2>
+          <ul class="cards">
+            <li><h3>Project one</h3><p>One line on what it does and your role.</p></li>
+            <li><h3>Project two</h3><p>One line on what it does and your role.</p></li>
+            <li><h3>Project three</h3><p>One line on what it does and your role.</p></li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="experience" data-stop="experience">
+        <div class="panel">
+          <p class="eyebrow">The keyboard · Experience</p>
+          <h2>Experience</h2>
+          <ol class="timeline">
+            <li><span>2024–now</span> Role, Company</li>
+            <li><span>2022–2024</span> Role, Company</li>
+            <li><span>2020–2022</span> Role, Company</li>
+          </ol>
+        </div>
+      </section>
+
+      <section id="contact" data-stop="contact">
+        <div class="panel">
+          <p class="eyebrow">The phone · Contact</p>
+          <h2>Get in touch</h2>
+          <p>Open to new projects and conversations.</p>
+          <p class="links">
+            <a href="mailto:you@example.com">Email</a>
+            <a href="https://github.com/">GitHub</a>
+            <a href="https://www.linkedin.com/">LinkedIn</a>
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

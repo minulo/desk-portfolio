@@ -1,0 +1,135 @@
+:root {
+  --bg: #e9e4dc;
+  --ink: #1d1b19;
+  --muted: #5d574f;
+  --panel: rgba(250, 247, 242, 0.86);
+  --accent: #c9643f;
+  --radius: 14px;
+  --font: system-ui, -apple-system, 'Segoe UI', Roboto, Ubuntu, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font);
+  line-height: 1.5;
+}
+
+#scene {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  display: block;
+  z-index: 0;
+}
+
+/* ---------- loader ---------- */
+#loader {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  background: var(--bg);
+  transition: opacity 0.6s ease;
+}
+#loader.is-done { opacity: 0; pointer-events: none; }
+.loader-inner { width: min(280px, 70vw); text-align: center; }
+.loader-title { margin: 0 0 12px; color: var(--muted); }
+.loader-track { height: 3px; background: rgba(0, 0, 0, 0.1); border-radius: 3px; overflow: hidden; }
+#loader-bar { height: 100%; background: var(--accent); transform: scaleX(0); transform-origin: left; transition: transform 0.2s ease; }
+#loader-pct { margin: 10px 0 0; font-variant-numeric: tabular-nums; color: var(--muted); font-size: 0.85rem; }
+
+/* ---------- sections ---------- */
+#sections { position: relative; z-index: 1; }
+
+section {
+  min-height: 100vh;
+  min-height: 100svh;
+  display: flex;
+  align-items: center;
+  padding: 6vh 6vw;
+  pointer-events: none; /* let the canvas sit underneath; panels re-enable */
+}
+section.align-right { justify-content: flex-end; }
+
+.panel {
+  pointer-events: auto;
+  max-width: 420px;
+  padding: 28px 30px;
+  background: var(--panel);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: var(--radius);
+  box-shadow: 0 10px 40px rgba(40, 30, 20, 0.12);
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+section.is-active .panel { opacity: 1; transform: none; }
+
+h1 { font-size: clamp(2.2rem, 5vw, 3.4rem); line-height: 1.05; margin: 0 0 12px; }
+h2 { font-size: 1.8rem; margin: 0 0 10px; }
+h3 { font-size: 1rem; margin: 0 0 2px; }
+p { margin: 0 0 10px; }
+.eyebrow { color: var(--accent); font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px; font-weight: 600; }
+.hint { color: var(--muted); font-size: 0.9rem; margin-top: 18px; }
+.cards { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 10px; }
+.cards li { padding: 12px 14px; background: rgba(255, 255, 255, 0.7); border-radius: 10px; }
+.cards p { color: var(--muted); margin: 0; font-size: 0.92rem; }
+.timeline { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 8px; }
+.timeline span { display: inline-block; min-width: 92px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.links { display: flex; gap: 16px; flex-wrap: wrap; }
+a { color: var(--accent); }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+
+/* ---------- nav dots ---------- */
+.dots {
+  position: fixed;
+  right: 18px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  display: grid;
+  gap: 12px;
+}
+.dots a {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(29, 27, 25, 0.25);
+  transition: background 0.3s, transform 0.3s;
+}
+html[data-stop='intro'] .dots a[data-goto='intro'],
+html[data-stop='about'] .dots a[data-goto='about'],
+html[data-stop='projects'] .dots a[data-goto='projects'],
+html[data-stop='experience'] .dots a[data-goto='experience'],
+html[data-stop='contact'] .dots a[data-goto='contact'] { background: var(--accent); transform: scale(1.3); }
+
+/* ---------- mobile: panels become bottom sheets over a framed view ---------- */
+@media (max-width: 768px) {
+  section,
+  section.align-right {
+    align-items: flex-end;
+    justify-content: center;
+    padding: 0 16px 16px;
+  }
+  .panel { max-width: none; width: 100%; padding: 20px; }
+  .dots { right: 8px; gap: 10px; }
+  h2 { font-size: 1.5rem; }
+}
+
+/* ---------- no WebGL: plain readable page ---------- */
+.no-webgl #scene { display: none; }
+.no-webgl section { min-height: auto; padding: 8vh 6vw; }
+
+/* ---------- reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .panel, #loader, #loader-bar, .dots a { transition: none; }
+  .panel { transform: none; }
+  html { scroll-behavior: auto; }
+}
