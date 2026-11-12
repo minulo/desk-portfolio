@@ -2,6 +2,9 @@
  * Point-cloud shapes for the swarm. Every builder returns a Float32Array of
  * `count` xyz triples, normalised to fit roughly inside a unit sphere, so the
  * config's `size` is the shape's radius in metres.
+ *
+ * Shapes: knot, helix, sphere (procedural), text (any characters in any font),
+ * icon (an SVG path, used for technology logos).
  */
 
 // Small deterministic random generator, so the swarm looks the same on every visit.
@@ -133,11 +136,62 @@ async function text(count, rand, def) {
     out[o + 2] = (rand() - 0.5) * 0.16;
     if (i % 9 === 0) inBall(rand, 0.1, out, o); // a few stragglers soften the edges
   }
+  out.fill = n / (c.width * c.height);
   return out;
 }
 
-const builders = { knot, helix, sphere, text };
+/** Scatters points over the filled area of an SVG path drawn in a 24 x 24 box (simple-icons format). */
+function icon(count, rand, def) {
+  const SIZE = 384;
+  const c = document.createElement('canvas');
+  c.width = c.height = SIZE;
+  const ctx = c.getContext('2d', { willReadFrequently: true });
+  ctx.scale(SIZE / 24, SIZE / 24);
+  ctx.fillStyle = '#fff';
+  try {
+    ctx.fill(new Path2D(def.path));
+  } catch {
+    return sphere(count, rand);
+  }
+  const data = ctx.getImageData(0, 0, SIZE, SIZE).data;
 
+  const filled = [];
+  let x0 = SIZE, x1 = 0, y0 = SIZE, y1 = 0;
+  for (let y = 0; y < SIZE; y++) {
+    for (let x = 0; x < SIZE; x++) {
+      if (data[(y * SIZE + x) * 4 + 3] > 128) {
+        filled.push(x, y);
+        if (x < x0) x0 = x;
+        if (x > x1) x1 = x;
+        if (y < y0) y0 = y;
+        if (y > y1) y1 = y;
+      }
+    }
+  }
+  if (filled.length < 2) return sphere(count, rand);
+
+  // Centre on the drawn area and fit its longer side to the unit box.
+  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  const half = Math.max(x1 - x0, y1 - y0) / 2 || 1;
+  const out = new Float32Array(count * 3);
+  const n = filled.length / 2;
+  for (let i = 0; i < count; i++) {
+    const k = Math.floor(rand() * n) * 2;
+    const o = i * 3;
+    out[o] = (filled[k] + rand() - cx) / half;
+    out[o + 1] = -(filled[k + 1] + rand() - cy) / half;
+    out[o + 2] = (rand() - 0.5) * 0.14;
+    if (i % 11 === 0) inBall(rand, 0.08, out, o); // a few stragglers soften the edges
+  }
+  // Share of the bounding box that is filled: thin logos pack their particles
+  // tighter than solid ones, and the swarm dims them to match.
+  out.fill = n / Math.max(1, (x1 - x0 + 1) * (y1 - y0 + 1));
+  return out;
+}
+
+const builders = { knot, helix, sphere, text, icon };
+
+/** Builds one point cloud per shape definition, in order. */
 export async function buildShapes(defs, count) {
   return Promise.all(
     defs.map((def, i) => (builders[def.shape] ?? sphere)(count, mulberry32(1337 + i * 7919), def)),

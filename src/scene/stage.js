@@ -4,6 +4,7 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { OutlinePass } from 'three/examples/jsm/postprocessing/OutlinePass.js';
 import { SMAAPass } from 'three/examples/jsm/postprocessing/SMAAPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { DESK_TOP } from '../config/scene.config.js';
@@ -245,13 +246,30 @@ export function createStage(canvas, { lite, pixelRatio }) {
 
   const camera = new THREE.PerspectiveCamera(32, 1, 0.05, 40);
 
-  // Post-processing (desktop only): render -> bloom -> SMAA -> tone map/sRGB.
-  // SMAAPass works in linear space and must run before OutputPass (see SMAAPass.js header).
+  // Post-processing (desktop only): render -> outline -> bloom -> SMAA -> tone map/sRGB.
+  // The outline is drawn before bloom so it glows. SMAAPass works in linear space
+  // and must run before OutputPass (see SMAAPass.js header).
   let composer = null;
   let bloom = null;
+  let outline = null;
+  const outlineHidden = []; // objects kept out of the outline's depth test (the particle swarm)
   if (!lite) {
     composer = new EffectComposer(renderer);
     composer.addPass(new RenderPass(scene, camera));
+
+    outline = new OutlinePass(new THREE.Vector2(1, 1), scene, camera, []);
+    outline.visibleEdgeColor.setRGB(0.62, 0.6, 1.0);
+    outline.hiddenEdgeColor.setRGB(0.05, 0.05, 0.12);
+    outline.edgeThickness = 1.4;
+    const drawOutline = outline.render.bind(outline);
+    outline.render = (...args) => {
+      const was = outlineHidden.map((o) => o.visible);
+      outlineHidden.forEach((o) => { o.visible = false; });
+      drawOutline(...args);
+      outlineHidden.forEach((o, i) => { o.visible = was[i]; });
+    };
+    composer.addPass(outline);
+
     bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.42, 0.6, 1.0);
     composer.addPass(bloom);
     composer.addPass(new SMAAPass());
@@ -274,8 +292,9 @@ export function createStage(canvas, { lite, pixelRatio }) {
     camera.aspect = w / h;
     // Tall, narrow screens: widen the field of view so objects still fit, and
     // slide the picture up so the scene sits above the text at the bottom.
+    // In between (4:3 tablets, narrow windows) the view widens gradually.
     const portrait = camera.aspect < 0.8;
-    camera.fov = portrait ? 54 : 32;
+    camera.fov = portrait ? 54 : THREE.MathUtils.clamp(32 * Math.pow(1.6 / camera.aspect, 0.9), 32, 44);
     if (portrait) camera.setViewOffset(w, h, 0, Math.round(h * 0.2), w, h);
     else camera.clearViewOffset();
     camera.updateProjectionMatrix();
@@ -290,5 +309,22 @@ export function createStage(canvas, { lite, pixelRatio }) {
       resize();
     },
     setBloom(on) { if (bloom) bloom.enabled = on; },
+    /** True when outlines can be drawn (desktop post-processing is on). */
+    hasOutline: !!outline,
+    /**
+     * Outline a set of objects. `mode` 'idle' is a soft, slowly pulsing line on
+     * everything clickable; 'hover' is a steady bright line on one object.
+     */
+    setOutline(objects, mode = 'idle') {
+      if (!outline) return;
+      outline.selectedObjects = objects;
+      const hover = mode === 'hover';
+      outline.edgeStrength = hover ? 2.6 : 1.1;
+      outline.edgeGlow = hover ? 0.45 : 0.2;
+      outline.pulsePeriod = hover ? 0 : 3.2;
+    },
+    /** Keep an object (the particle swarm) from punching holes in outlines. */
+    hideFromOutline(object) { outlineHidden.push(object); },
+    setOutlineEnabled(on) { if (outline) outline.enabled = on; },
   };
 }

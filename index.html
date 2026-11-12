@@ -3,14 +3,25 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Your Name — After hours</title>
-    <meta name="description" content="Portfolio of Your Name. A desk at night: follow the light from object to object." />
+    <title>Minh Nguyen — After hours</title>
+    <meta name="description" content="Minh Nguyen, Associate Software Engineer at Canonical. A desk at night: follow the daemon from object to object." />
     <meta name="theme-color" content="#07080d" />
     <meta name="color-scheme" content="dark" />
+    <!-- Without JavaScript there is no 3D scene: show the text as a plain page. -->
+    <noscript>
+      <style>
+        #loader, #scene, .scrim, .meta, .dots, .daemon, .cursor-hint, .check, .tooltip { display: none !important; }
+        section { height: auto !important; }
+        .pin { position: static !important; height: auto !important; padding: 12vh 6vw 4vh !important; justify-content: flex-start !important; }
+        .panel { opacity: 1 !important; }
+        .panel a, .topbar { pointer-events: auto !important; }
+        .topbar { opacity: 1 !important; transform: none !important; }
+      </style>
+    </noscript>
   </head>
   <body>
     <div id="loader" role="progressbar" aria-label="Loading 3D scene" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-      <p class="loader-title">Switching on the lamp</p>
+      <p class="loader-title">Rolling for initiative</p>
       <div class="loader-foot">
         <p id="loader-pct" aria-hidden="true">000</p>
         <div class="loader-track"><div id="loader-bar"></div></div>
@@ -23,21 +34,28 @@
     <div class="grain" aria-hidden="true"></div>
     <div id="progress" aria-hidden="true"></div>
     <div id="tooltip" class="tooltip" aria-hidden="true"></div>
+    <p id="daemon" class="daemon" aria-hidden="true"><span>daemon</span><b id="daemon-name"></b></p>
+
+    <div id="check" class="check" role="status" aria-live="polite">
+      <span class="check-cmd"><i>$</i><span data-cmd></span></span>
+      <span class="check-roll">d20 <b data-die>00</b> <span data-sum></span></span>
+      <span class="check-verdict" data-verdict></span>
+    </div>
 
     <header class="topbar">
-      <a href="#intro" data-goto="intro" class="wordmark">Your Name</a>
-      <p class="status"><span class="pulse"></span>After hours · open to work</p>
-      <a href="#contact" data-goto="contact" class="cta">Say hello</a>
+      <a href="#intro" data-goto="intro" class="wordmark">Minh Nguyen</a>
+      <p class="status"><span class="pulse"></span><span><i>class</i> Software Engineer</span><span><i>guild</i> Canonical</span></p>
+      <a href="#contact" data-goto="contact" class="cta ench">Say hello</a>
     </header>
 
     <div class="meta" aria-hidden="true">
-      <span id="sec-index">01</span><span class="meta-sep">/</span><span class="meta-total">05</span>
-      <span id="sec-name" class="meta-name">Intro</span>
+      <span class="meta-key">scene</span><span id="sec-index">01</span><span class="meta-sep">/</span><span class="meta-total">05</span>
+      <span id="sec-name" class="meta-name">Prologue</span>
     </div>
-    <p class="cursor-hint" aria-hidden="true">Move the cursor. The light reacts.</p>
+    <p class="cursor-hint" aria-hidden="true">Glowing objects can be clicked.</p>
 
     <nav class="dots" aria-label="Sections">
-      <a href="#intro" data-goto="intro" data-label="Intro" aria-label="Intro"></a>
+      <a href="#intro" data-goto="intro" data-label="Prologue" aria-label="Prologue"></a>
       <a href="#about" data-goto="about" data-label="About" aria-label="About"></a>
       <a href="#projects" data-goto="projects" data-label="Work" aria-label="Work"></a>
       <a href="#experience" data-goto="experience" data-label="Experience" aria-label="Experience"></a>
@@ -45,66 +63,91 @@
     </nav>
 
     <main id="sections">
-      <section id="intro" data-stop="intro" data-label="Intro">
+      <section id="intro" data-stop="intro" data-label="Prologue">
         <div class="pin">
           <div class="panel panel-intro">
             <p class="eyebrow" data-rise>Portfolio · After hours</p>
-            <h1 data-split>Your <em>Name</em></h1>
-            <p class="lede" data-split>Developer. My best ideas turn up late, at this desk. Scroll and follow the light: it stops at every object and takes the shape of what comes next.</p>
-            <p class="hint" data-rise aria-hidden="true"><span class="hint-line"></span>Scroll</p>
+            <h1 data-split>Minh <em>Nguyen</em></h1>
+            <p class="role" data-rise>Associate Software Engineer · Canonical · Rochester, NY</p>
+            <p class="say v-kernel" data-rise><b class="voice">Kernel</b>Crafting software end to end — platform tooling on one side, fast and accessible web on the other, with a soft spot for thoughtful detail.</p>
+            <p class="narr" data-rise>It is late and the lamp is on. A daemon of light drifts over the desk, taking the shape of whatever I have been working with.</p>
+            <ol class="opts opts-grid">
+              <li data-rise><a class="opt ench" href="#about" data-goto="about" data-roll="mug"><span>Look at the mug.</span><small>About</small></a></li>
+              <li data-rise><a class="opt ench" href="#projects" data-goto="projects" data-roll="monitor"><span>Read the monitor.</span><small>Work</small></a></li>
+              <li data-rise><a class="opt ench" href="#experience" data-goto="experience" data-roll="keyboard"><span>Try the keyboard.</span><small>Experience</small></a></li>
+              <li data-rise><a class="opt ench" href="#contact" data-goto="contact" data-roll="phone"><span>Pick up the phone.</span><small>Contact</small></a></li>
+            </ol>
+            <p class="hint" data-rise aria-hidden="true"><span class="hint-line"></span>Scroll, or choose</p>
           </div>
         </div>
       </section>
 
-      <section id="about" data-stop="about" data-label="About">
+      <section id="about" data-stop="about" data-label="About" data-object="The mug">
         <div class="pin">
           <div class="panel">
             <p class="eyebrow" data-rise><span>01</span>The mug</p>
             <h2 data-split>A little <em>about me</em></h2>
-            <p data-split>A few sentences about who you are, what you care about and what you're looking for next. This is the part people actually read, so make it sound like you.</p>
+            <p class="say v-kernel" data-rise><b class="voice">Kernel</b>I'm a software engineer focused on building fast, accessible frontend experiences and dependable backend systems.</p>
+            <p class="say v-cache" data-rise><b class="voice">Cache</b>I've worked across startups, big tech, and research labs, turning ideas into production features and collaborating with teams to build inclusive, polished products.</p>
+            <p class="say v-compiler" data-rise><b class="voice">Compiler</b><span class="chk">type check passed</span>University of Rochester. M.S. Computer Science, 2026. B.S. Computer Science, High Distinction, 2025.</p>
+            <p class="feats" data-rise><i>feats</i>MetaCTF top winner (6th of 1300) · Dean's Scholarship · Master's Scholarship</p>
           </div>
         </div>
       </section>
 
-      <section id="projects" data-stop="projects" data-label="Work">
+      <section id="projects" data-stop="projects" data-label="Work" data-object="The monitor">
         <div class="pin">
           <div class="panel">
             <p class="eyebrow" data-rise><span>02</span>The monitor</p>
-            <h2 data-split>Selected <em>work</em></h2>
+            <h2 data-split>Quest <em>log</em></h2>
             <ul class="rows">
-              <li data-rise><a href="#"><span class="row-year">2026</span><span class="row-main"><strong>Project one</strong><small>What it does and your role.</small></span><span class="row-arrow" aria-hidden="true">↗</span></a></li>
-              <li data-rise><a href="#"><span class="row-year">2025</span><span class="row-main"><strong>Project two</strong><small>What it does and your role.</small></span><span class="row-arrow" aria-hidden="true">↗</span></a></li>
-              <li data-rise><a href="#"><span class="row-year">2024</span><span class="row-main"><strong>Project three</strong><small>What it does and your role.</small></span><span class="row-arrow" aria-hidden="true">↗</span></a></li>
+              <li data-rise><a class="ench" href="https://melcourses.com" rel="noopener"><span class="row-tag">done</span><span class="row-main"><strong>Melcourses CDCS System</strong><small>Frontend Lead · Next.js, React, TypeScript · 1,200+ users</small></span><span class="row-arrow" aria-hidden="true">↗</span></a></li>
+              <li data-rise><a class="ench" href="https://advait.org/files/zhou_2024_k12_ML.pdf" rel="noopener"><span class="row-tag">done</span><span class="row-main"><strong>Teacher Authoring Tool</strong><small>Research Assistant · React, TypeScript, Redux · published paper</small></span><span class="row-arrow" aria-hidden="true">↗</span></a></li>
+              <li data-rise><a class="ench" href="https://sonicfires2.github.io/landing-page-aif/" rel="noopener"><span class="row-tag">done</span><span class="row-main"><strong>Anime Interest Floor landing page</strong><small>Web Master · React · 300+ member community</small></span><span class="row-arrow" aria-hidden="true">↗</span></a></li>
             </ul>
+            <p class="side" data-rise><i>side quests</i>Open source at Canonical, as <a href="https://github.com/minulo" rel="noopener">minulo</a></p>
+            <p class="chips" data-rise>
+              <a class="chip ench" href="https://github.com/canonical/gopkg-charmed" rel="noopener">gopkg-charmed<small>maintainer</small></a>
+              <a class="chip ench" href="https://github.com/canonical/haproxy-operator" rel="noopener">haproxy-operator</a>
+              <a class="chip ench" href="https://github.com/canonical/charmcraft" rel="noopener">charmcraft</a>
+              <a class="chip ench" href="https://github.com/canonical/rockcraft" rel="noopener">rockcraft</a>
+              <a class="chip ench" href="https://github.com/canonical/indico-operator" rel="noopener">indico-operator</a>
+            </p>
           </div>
         </div>
       </section>
 
-      <section id="experience" data-stop="experience" data-label="Experience">
+      <section id="experience" data-stop="experience" data-label="Experience" data-object="The keyboard">
         <div class="pin">
           <div class="panel">
             <p class="eyebrow" data-rise><span>03</span>The keyboard</p>
             <h2 data-split>Where I've <em>been</em></h2>
+            <p class="say v-scheduler trim" data-rise><b class="voice">Scheduler</b>Now running at Canonical: gopkg-charmed, the 12-factor charm replacing gopkg.in.</p>
             <ol class="rows">
-              <li data-rise><div><span class="row-year">2024 — now</span><span class="row-main"><strong>Role</strong><small>Company</small></span></div></li>
-              <li data-rise><div><span class="row-year">2022 — 24</span><span class="row-main"><strong>Role</strong><small>Company</small></span></div></li>
-              <li data-rise><div><span class="row-year">2020 — 22</span><span class="row-main"><strong>Role</strong><small>Company</small></span></div></li>
+              <li data-rise><div><span class="row-year">2026 — now</span><span class="row-main"><strong>Associate Software Engineer</strong><small>Canonical</small></span></div></li>
+              <li data-rise><div><span class="row-year">2026 — now</span><span class="row-main"><strong>Research Assistant</strong><small>Inter.play Lab · University of Rochester</small></span></div></li>
+              <li data-rise><div><span class="row-year">2025</span><span class="row-main"><strong>Software Engineer</strong><small>Onc.AI · contract</small></span></div></li>
+              <li data-rise><div><span class="row-year">2024</span><span class="row-main"><strong>Software Engineer Intern</strong><small>Salesforce</small></span></div></li>
+              <li data-rise><div><span class="row-year">2023 — 24</span><span class="row-main"><strong>Frontend Lead</strong><small>RocLab · University of Rochester</small></span></div></li>
             </ol>
+            <p class="more" data-rise><a href="https://www.linkedin.com/in/minh-nguyen-98a48a245/" rel="noopener"><span class="more-full">+ 6 earlier roles</span><span class="more-trim">+ 8 more roles</span> on LinkedIn ↗</a></p>
           </div>
         </div>
       </section>
 
-      <section id="contact" data-stop="contact" data-label="Contact">
+      <section id="contact" data-stop="contact" data-label="Contact" data-object="The phone">
         <div class="pin">
           <div class="panel">
             <p class="eyebrow" data-rise><span>04</span>The phone</p>
             <h2 data-split>Let's <em>talk</em></h2>
-            <p data-split>Open to new projects and good conversations. Email is the fastest way to reach me.</p>
-            <p class="links" data-rise>
-              <a class="link-main" href="mailto:you@example.com">you@example.com</a>
-              <a href="https://github.com/" rel="noopener">GitHub</a>
-              <a href="https://www.linkedin.com/" rel="noopener">LinkedIn</a>
-            </p>
+            <p class="say v-socket" data-rise><b class="voice">Socket</b>Connection open. Email is the fastest way to reach me.</p>
+            <ol class="opts">
+              <li data-rise><a class="opt ench" href="mailto:mnguyen31@u.rochester.edu"><span>Write an email.</span><small>mnguyen31@u.rochester.edu</small></a></li>
+              <li data-rise><a class="opt ench" href="https://github.com/Sonicfires2" rel="noopener"><span>Browse the code.</span><small>GitHub · Sonicfires2</small></a></li>
+              <li data-rise><a class="opt ench" href="https://github.com/minulo" rel="noopener"><span>See the open-source work.</span><small>GitHub · minulo</small></a></li>
+              <li data-rise><a class="opt ench" href="https://www.linkedin.com/in/minh-nguyen-98a48a245/" rel="noopener"><span>Connect.</span><small>LinkedIn</small></a></li>
+              <li data-rise><a class="opt ench" href="Minh_Nguyen_Resume.pdf" download><span>Take the résumé.</span><small>PDF</small></a></li>
+            </ol>
           </div>
         </div>
       </section>

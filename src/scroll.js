@@ -125,7 +125,11 @@ export function createScrollCamera({ camera, stops, sections, requestRender, get
   // "nearest stop", so the words appear as the camera arrives, not half-way there.
   function setText(i, active) {
     sections[i].classList.toggle('is-active', !!active);
-    if (active) document.documentElement.dataset.align = stops[i].align;
+    // The shading behind the text follows whichever section is showing, and
+    // lifts completely while the camera is between stops.
+    const showing = sections.findIndex((el) => el.classList.contains('is-active'));
+    if (showing >= 0) document.documentElement.dataset.align = stops[showing].align;
+    else delete document.documentElement.dataset.align;
     onText?.(i, active);
   }
   const textTriggers = sections.map((el, i) => ScrollTrigger.create({
