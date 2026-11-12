@@ -3,95 +3,109 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Your Name — Portfolio</title>
-    <meta name="description" content="Portfolio of Your Name. Scroll across my desk; every object opens a chapter." />
-    <meta name="theme-color" content="#e8e1d6" />
+    <title>Your Name — After hours</title>
+    <meta name="description" content="Portfolio of Your Name. A desk at night: follow the light from object to object." />
+    <meta name="theme-color" content="#07080d" />
+    <meta name="color-scheme" content="dark" />
   </head>
   <body>
     <div id="loader" role="progressbar" aria-label="Loading 3D scene" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-      <div class="loader-inner">
-        <p class="loader-title">Setting the desk</p>
+      <p class="loader-title">Switching on the lamp</p>
+      <div class="loader-foot">
         <p id="loader-pct" aria-hidden="true">000</p>
         <div class="loader-track"><div id="loader-bar"></div></div>
       </div>
     </div>
 
     <canvas id="scene" aria-hidden="true"></canvas>
+    <div class="scrim scrim-left" aria-hidden="true"></div>
+    <div class="scrim scrim-right" aria-hidden="true"></div>
     <div class="grain" aria-hidden="true"></div>
     <div id="progress" aria-hidden="true"></div>
     <div id="tooltip" class="tooltip" aria-hidden="true"></div>
 
     <header class="topbar">
       <a href="#intro" data-goto="intro" class="wordmark">Your Name</a>
-      <p class="status"><span class="pulse"></span>Available for work</p>
+      <p class="status"><span class="pulse"></span>After hours · open to work</p>
       <a href="#contact" data-goto="contact" class="cta">Say hello</a>
     </header>
 
-    <div class="meta" aria-live="polite">
+    <div class="meta" aria-hidden="true">
       <span id="sec-index">01</span><span class="meta-sep">/</span><span class="meta-total">05</span>
       <span id="sec-name" class="meta-name">Intro</span>
     </div>
+    <p class="cursor-hint" aria-hidden="true">Move the cursor. The light reacts.</p>
 
     <nav class="dots" aria-label="Sections">
       <a href="#intro" data-goto="intro" data-label="Intro" aria-label="Intro"></a>
       <a href="#about" data-goto="about" data-label="About" aria-label="About"></a>
-      <a href="#projects" data-goto="projects" data-label="Projects" aria-label="Projects"></a>
+      <a href="#projects" data-goto="projects" data-label="Work" aria-label="Work"></a>
       <a href="#experience" data-goto="experience" data-label="Experience" aria-label="Experience"></a>
       <a href="#contact" data-goto="contact" data-label="Contact" aria-label="Contact"></a>
     </nav>
 
     <main id="sections">
-      <section id="intro" data-stop="intro">
-        <div class="panel panel-intro">
-          <p class="eyebrow">Hello, I'm</p>
-          <h1>Your Name</h1>
-          <p class="lede">A developer who builds things that feel good to use. Scroll to look around my desk; every object opens a chapter.</p>
-          <p class="hint" aria-hidden="true"><span class="hint-line"></span>Scroll</p>
+      <section id="intro" data-stop="intro" data-label="Intro">
+        <div class="pin">
+          <div class="panel panel-intro">
+            <p class="eyebrow" data-rise>Portfolio · After hours</p>
+            <h1 data-split>Your <em>Name</em></h1>
+            <p class="lede" data-split>Developer. My best ideas turn up late, at this desk. Scroll and follow the light: it stops at every object and takes the shape of what comes next.</p>
+            <p class="hint" data-rise aria-hidden="true"><span class="hint-line"></span>Scroll</p>
+          </div>
         </div>
       </section>
 
-      <section id="about" data-stop="about">
-        <div class="panel">
-          <p class="eyebrow">The mug · 01</p>
-          <h2>About me</h2>
-          <p>A few sentences about who you are, what you care about and what you're looking for next. This is the part people actually read, so make it sound like you.</p>
+      <section id="about" data-stop="about" data-label="About">
+        <div class="pin">
+          <div class="panel">
+            <p class="eyebrow" data-rise><span>01</span>The mug</p>
+            <h2 data-split>A little <em>about me</em></h2>
+            <p data-split>A few sentences about who you are, what you care about and what you're looking for next. This is the part people actually read, so make it sound like you.</p>
+          </div>
         </div>
       </section>
 
-      <section id="projects" data-stop="projects">
-        <div class="panel">
-          <p class="eyebrow">The monitor · 02</p>
-          <h2>Selected work</h2>
-          <ul class="cards">
-            <li><a href="#"><span class="card-year">2026</span><h3>Project one</h3><p>One line on what it does and your role.</p></a></li>
-            <li><a href="#"><span class="card-year">2025</span><h3>Project two</h3><p>One line on what it does and your role.</p></a></li>
-            <li><a href="#"><span class="card-year">2024</span><h3>Project three</h3><p>One line on what it does and your role.</p></a></li>
-          </ul>
+      <section id="projects" data-stop="projects" data-label="Work">
+        <div class="pin">
+          <div class="panel">
+            <p class="eyebrow" data-rise><span>02</span>The monitor</p>
+            <h2 data-split>Selected <em>work</em></h2>
+            <ul class="rows">
+              <li data-rise><a href="#"><span class="row-year">2026</span><span class="row-main"><strong>Project one</strong><small>What it does and your role.</small></span><span class="row-arrow" aria-hidden="true">↗</span></a></li>
+              <li data-rise><a href="#"><span class="row-year">2025</span><span class="row-main"><strong>Project two</strong><small>What it does and your role.</small></span><span class="row-arrow" aria-hidden="true">↗</span></a></li>
+              <li data-rise><a href="#"><span class="row-year">2024</span><span class="row-main"><strong>Project three</strong><small>What it does and your role.</small></span><span class="row-arrow" aria-hidden="true">↗</span></a></li>
+            </ul>
+          </div>
         </div>
       </section>
 
-      <section id="experience" data-stop="experience">
-        <div class="panel">
-          <p class="eyebrow">The keyboard · 03</p>
-          <h2>Experience</h2>
-          <ol class="timeline">
-            <li><span>2024 — now</span><strong>Role</strong> at Company</li>
-            <li><span>2022 — 2024</span><strong>Role</strong> at Company</li>
-            <li><span>2020 — 2022</span><strong>Role</strong> at Company</li>
-          </ol>
+      <section id="experience" data-stop="experience" data-label="Experience">
+        <div class="pin">
+          <div class="panel">
+            <p class="eyebrow" data-rise><span>03</span>The keyboard</p>
+            <h2 data-split>Where I've <em>been</em></h2>
+            <ol class="rows">
+              <li data-rise><div><span class="row-year">2024 — now</span><span class="row-main"><strong>Role</strong><small>Company</small></span></div></li>
+              <li data-rise><div><span class="row-year">2022 — 24</span><span class="row-main"><strong>Role</strong><small>Company</small></span></div></li>
+              <li data-rise><div><span class="row-year">2020 — 22</span><span class="row-main"><strong>Role</strong><small>Company</small></span></div></li>
+            </ol>
+          </div>
         </div>
       </section>
 
-      <section id="contact" data-stop="contact">
-        <div class="panel">
-          <p class="eyebrow">The phone · 04</p>
-          <h2>Let's make something</h2>
-          <p>Open to new projects and conversations. The fastest way to reach me is email.</p>
-          <p class="links">
-            <a href="mailto:you@example.com">Email</a>
-            <a href="https://github.com/" rel="noopener">GitHub</a>
-            <a href="https://www.linkedin.com/" rel="noopener">LinkedIn</a>
-          </p>
+      <section id="contact" data-stop="contact" data-label="Contact">
+        <div class="pin">
+          <div class="panel">
+            <p class="eyebrow" data-rise><span>04</span>The phone</p>
+            <h2 data-split>Let's <em>talk</em></h2>
+            <p data-split>Open to new projects and good conversations. Email is the fastest way to reach me.</p>
+            <p class="links" data-rise>
+              <a class="link-main" href="mailto:you@example.com">you@example.com</a>
+              <a href="https://github.com/" rel="noopener">GitHub</a>
+              <a href="https://www.linkedin.com/" rel="noopener">LinkedIn</a>
+            </p>
+          </div>
         </div>
       </section>
     </main>

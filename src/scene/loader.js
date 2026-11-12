@@ -75,7 +75,7 @@ export function createModelLoader(manager) {
     // Soft ambient-occlusion blob under the footprint (cheap, reads as "grounded").
     const contact = new THREE.Mesh(
       new THREE.PlaneGeometry(1, 1),
-      new THREE.MeshBasicMaterial({ map: getShadowTexture(), transparent: true, depthWrite: false, opacity: 0.7 }),
+      new THREE.MeshBasicMaterial({ map: getShadowTexture(), transparent: true, depthWrite: false, opacity: 0.85 }),
     );
     contact.rotation.x = -Math.PI / 2;
     contact.position.y = 0.0015;

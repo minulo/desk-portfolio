@@ -1,11 +1,14 @@
 import * as THREE from 'three';
-import '@fontsource-variable/fraunces/index.css';
+import { gsap } from 'gsap';
+import '@fontsource-variable/fraunces/opsz.css';
+import '@fontsource-variable/fraunces/opsz-italic.css';
 import '@fontsource-variable/inter/index.css';
 import 'lenis/dist/lenis.css';
 import './style.css';
 import { objects, stops } from './config/scene.config.js';
 import { createStage } from './scene/stage.js';
 import { createModelLoader } from './scene/loader.js';
+import { createSwarm } from './scene/swarm.js';
 import { createScrollCamera } from './scroll.js';
 import { createInteractions } from './interact.js';
 import { createReveals } from './reveal.js';
@@ -16,6 +19,10 @@ const mqReduce = window.matchMedia('(prefers-reduced-motion: reduce)');
 /** 'static' = jump between stops, 'stepped' = short ease between stops, 'continuous' = full scroll-driven path */
 const getMode = () => (mqReduce.matches ? 'static' : mqMobile.matches ? 'stepped' : 'continuous');
 
+// `?q=high` pins full quality (used for screenshots); otherwise quality adapts to frame rate.
+const pinnedQuality = new URLSearchParams(location.search).get('q') === 'high';
+
+const html = document.documentElement;
 const loaderEl = document.getElementById('loader');
 const barEl = document.getElementById('loader-bar');
 const pctEl = document.getElementById('loader-pct');
@@ -35,14 +42,13 @@ function setProgress(ratio) {
 
 function hideLoader() {
   loaderEl.classList.add('is-done');
-  document.documentElement.classList.add('is-ready');
-  loaderEl.addEventListener('transitionend', () => loaderEl.remove(), { once: true });
-  setTimeout(() => loaderEl.remove(), 1500); // in case transitions are disabled
+  html.classList.add('is-ready');
+  setTimeout(() => loaderEl.remove(), 1600);
 }
 
 function showStopMeta(i) {
   secIndexEl.textContent = String(i + 1).padStart(2, '0');
-  secNameEl.textContent = sections[i].querySelector('h1, h2')?.textContent?.trim() ?? stops[i].section;
+  secNameEl.textContent = sections[i].dataset.label ?? stops[i].section;
 }
 
 function webglAvailable() {
@@ -56,7 +62,7 @@ function webglAvailable() {
 
 function plainFallback() {
   // The page is plain HTML underneath, so it still works without 3D.
-  document.documentElement.classList.add('no-webgl');
+  html.classList.add('no-webgl');
   sections.forEach((el) => el.classList.add('is-active'));
   hideLoader();
 }
@@ -64,40 +70,49 @@ function plainFallback() {
 async function start() {
   if (!webglAvailable()) return plainFallback();
 
+  const lite = mqMobile.matches;
   const canvas = document.getElementById('scene');
-  const { scene, camera, resize, render } = createStage(canvas, { lite: mqMobile.matches });
+  let pixelRatio = Math.min(window.devicePixelRatio, lite ? 1.5 : 1.75);
+  const stage = createStage(canvas, { lite, pixelRatio });
+  const { scene, camera, renderer } = stage;
 
   let needsRender = true;
   const requestRender = () => { needsRender = true; };
 
+  // Models (placeholders or .glb files, see scene.config.js)
   const manager = new THREE.LoadingManager();
-  manager.onProgress = (_url, loaded, total) => setProgress(loaded / total);
+  manager.onProgress = (_url, loaded, total) => setProgress((loaded / total) * 0.9);
   const loader = createModelLoader(manager);
-
   const holders = await Promise.all(objects.map((entry) => loader.load(entry)));
   holders.forEach((obj) => scene.add(obj));
 
-  // Text reveals must exist before the scroll controller activates the first stop.
+  // The swarm samples glyphs from the web fonts, so those must be ready first.
   await document.fonts.ready;
+  const swarm = await createSwarm({ stops, count: lite ? 7000 : 18000, bloom: !lite });
+  scene.add(swarm.points, swarm.light);
+
   const reveal = createReveals(sections, { enabled: !mqReduce.matches });
 
-  resize();
+  const fit = () => {
+    stage.resize();
+    swarm.setProjection(renderer.domElement.height, camera.fov);
+  };
+  fit();
+
   const scroll = createScrollCamera({
     camera, stops, sections, requestRender, getMode,
-    onStop: (i) => {
-      showStopMeta(i);
-      sections.forEach((el, j) => (j === i ? reveal.show(el) : reveal.hide(el)));
-    },
+    onStop: showStopMeta,
+    onText: (i, active) => (active ? reveal.show(sections[i]) : reveal.hide(sections[i])),
     onProgress: (p) => { progressEl.style.transform = `scaleX(${p})`; },
+    onPath: (f) => swarm.setProgress(f),
   });
-  createInteractions({ canvas, camera, holders, stops, scroll, requestRender, getMode, tooltip: tooltipEl });
-
-  // Compile shaders and draw one frame before revealing, so the first scroll doesn't stutter.
-  render();
-  setProgress(1);
+  createInteractions({
+    canvas, camera, holders, stops, scroll, swarm, requestRender, getMode,
+    invalidateShadows: stage.invalidateShadows, tooltip: tooltipEl,
+  });
 
   const onChange = () => {
-    resize();
+    fit();
     scroll.refresh();
     requestRender();
   };
@@ -105,22 +120,42 @@ async function start() {
   mqMobile.addEventListener('change', onChange);
   mqReduce.addEventListener('change', onChange);
 
-  // Render only when something changed (saves battery; nothing animates on its own).
-  let rafPending = false;
-  const frame = () => {
-    rafPending = false;
+  // Frame loop. The swarm animates continuously unless motion is reduced, in
+  // which case frames are only drawn when something changed.
+  const t0 = performance.now();
+  const gov = { since: 0, frames: 0 };
+  function govern(now) {
+    if (pinnedQuality) return;
+    if (!gov.since) { gov.since = now; gov.frames = 0; return; }
+    gov.frames++;
+    const elapsed = now - gov.since;
+    if (elapsed < 2500) return;
+    const ms = elapsed / gov.frames;
+    gov.since = 0;
+    if (ms < 30) return; // comfortably above ~33 fps
+    if (pixelRatio > 1) {
+      pixelRatio = Math.max(1, pixelRatio - 0.25);
+      stage.setPixelRatio(pixelRatio);
+      swarm.setProjection(renderer.domElement.height, camera.fov);
+    } else {
+      stage.setBloom(false);
+    }
+  }
+  document.addEventListener('visibilitychange', () => { gov.since = 0; });
+
+  let governing = false;
+  function frame(now) {
+    requestAnimationFrame(frame);
+    if (document.hidden) return;
+    if (getMode() !== 'static') {
+      swarm.setTime((now - t0) / 1000);
+      needsRender = true;
+    }
     if (!needsRender) return;
     needsRender = false;
-    render();
-  };
-  const loop = () => {
-    if (needsRender && !rafPending) {
-      rafPending = true;
-      requestAnimationFrame(frame);
-    }
-    requestAnimationFrame(loop);
-  };
-  loop();
+    stage.render();
+    if (governing) govern(now);
+  }
 
   document.querySelectorAll('[data-goto]').forEach((a) => {
     a.addEventListener('click', (e) => {
@@ -130,14 +165,28 @@ async function start() {
     });
   });
 
-  // Intro: text starts hidden, loader fades, camera dollies in, then the first panel reveals.
+  // First frame compiles the shaders while the loader is still up.
+  const animateIntro = getMode() === 'continuous' && scroll.activeIndex === 0 && window.scrollY < 4;
   const first = sections[scroll.activeIndex];
-  reveal.reset(first);
+  if (animateIntro) {
+    swarm.setAssemble(0);
+    reveal.reset(first);
+  }
+  stage.render();
+  setProgress(1);
+  requestAnimationFrame(frame);
+
+  // Intro: the loader lifts, the camera dollies in, dust gathers into the swarm,
+  // then the first lines of text rise.
+  await new Promise((r) => setTimeout(r, 350));
   hideLoader();
-  await new Promise((r) => setTimeout(r, 250));
-  const dolly = scroll.playIntro();
-  setTimeout(() => reveal.show(first), getMode() === 'continuous' ? 700 : 0);
-  await dolly;
+  if (animateIntro) {
+    const assemble = { v: 0 };
+    gsap.to(assemble, { v: 1, duration: 3.6, ease: 'power2.inOut', onUpdate: () => swarm.setAssemble(assemble.v) });
+    setTimeout(() => reveal.show(first), 1300);
+    await scroll.playIntro(3.4);
+  }
+  governing = true;
 }
 
 start().catch((err) => {

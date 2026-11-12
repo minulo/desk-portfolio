@@ -48,7 +48,7 @@ function screenTexture() {
 
 function monitor() {
   const g = new THREE.Group();
-  const dark = mat(0x22252b, { roughness: 0.4 });
+  const dark = mat(0x15171c, { roughness: 0.35, metalness: 0.4 });
   const base = new THREE.Mesh(new RoundedBoxGeometry(0.22, 0.015, 0.16, 2, 0.006), dark);
   base.position.y = 0.0075;
   const neck = new THREE.Mesh(new RoundedBoxGeometry(0.04, 0.16, 0.025, 2, 0.008), dark);
@@ -58,7 +58,7 @@ function monitor() {
   const tex = screenTexture();
   const screen = new THREE.Mesh(
     new THREE.PlaneGeometry(0.595, 0.335),
-    new THREE.MeshStandardMaterial({ map: tex, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.9, roughness: 0.25 }),
+    new THREE.MeshStandardMaterial({ map: tex, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.85, roughness: 0.9 }),
   );
   screen.position.set(0, 0.32, -0.0065);
   g.add(base, neck, body, screen);
@@ -67,13 +67,16 @@ function monitor() {
 
 function keyboard() {
   const g = new THREE.Group();
-  const caseMesh = new THREE.Mesh(new RoundedBoxGeometry(0.44, 0.025, 0.14, 2, 0.008), mat(0xd9d4cb));
+  const caseMesh = new THREE.Mesh(new RoundedBoxGeometry(0.44, 0.025, 0.14, 2, 0.008), mat(0x1d2027, { roughness: 0.4, metalness: 0.3 }));
   caseMesh.position.y = 0.0125;
   g.add(caseMesh);
   // A grid of keys as one InstancedMesh (one draw call).
   const cols = 14, rows = 5, key = 0.026, gap = 0.004;
-  const keys = new THREE.InstancedMesh(new RoundedBoxGeometry(key, 0.012, key, 1, 0.003), mat(0x3b3f47), cols * rows);
+  const keys = new THREE.InstancedMesh(new RoundedBoxGeometry(key, 0.012, key, 1, 0.003), mat(0xffffff, { roughness: 0.6 }), cols * rows);
   const m = new THREE.Matrix4();
+  const base = new THREE.Color(0x3b3f4a);
+  const dark = new THREE.Color(0x23262e);
+  const accent = new THREE.Color(0xe8823c);
   let i = 0;
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
@@ -82,6 +85,8 @@ function keyboard() {
         0.03,
         (r - (rows - 1) / 2) * (key + gap),
       );
+      const edge = c === 0 || c === cols - 1 || r === rows - 1;
+      keys.setColorAt(i, (r === 0 && c === 0) || (r === 2 && c === cols - 1) ? accent : edge ? dark : base);
       keys.setMatrixAt(i++, m);
     }
   }
@@ -91,7 +96,7 @@ function keyboard() {
 
 function mug() {
   const g = new THREE.Group();
-  const ceramic = mat(0xc9643f, { roughness: 0.35 });
+  const ceramic = mat(0xe9e2d4, { roughness: 0.3 });
   const body = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.038, 0.1, 40, 1, true), ceramic);
   body.material.side = THREE.DoubleSide;
   body.position.y = 0.05;
@@ -114,7 +119,7 @@ function phone() {
   body.position.y = 0.0045;
   const screen = new THREE.Mesh(
     new THREE.PlaneGeometry(0.068, 0.146),
-    new THREE.MeshStandardMaterial({ color: 0x0b1020, emissive: 0x7a5cff, emissiveIntensity: 0.45, roughness: 0.2 }),
+    new THREE.MeshStandardMaterial({ color: 0x0b1020, emissive: 0x6f7dff, emissiveIntensity: 0.55, roughness: 0.2 }),
   );
   screen.rotation.x = -Math.PI / 2;
   screen.position.y = 0.0092;

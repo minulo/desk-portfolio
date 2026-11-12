@@ -6,7 +6,7 @@ import Lenis from 'lenis';
 gsap.registerPlugin(ScrollTrigger);
 
 /**
- * Drives the camera from scroll position.
+ * Drives the camera (and everything that follows it) from scroll position.
  *
  * Continuous mode (desktop, motion allowed): scroll progress 0..1 is mapped
  * onto a Catmull-Rom curve through the camera stops. Each segment is eased
@@ -14,11 +14,12 @@ gsap.registerPlugin(ScrollTrigger);
  * Lenis smooths the scroll itself; GSAP's scrub smooths the camera on top.
  *
  * Stepped mode (mobile) / static mode (prefers-reduced-motion): the camera
- * eases or jumps to the nearest stop and only renders on those changes.
+ * eases or jumps to the nearest stop.
  *
  * Final camera position = path(u) + introOffset * (1 - introT) + parallax.
+ * `onPath(f)` reports the eased position as a float from 0 to stops-1.
  */
-export function createScrollCamera({ camera, stops, sections, requestRender, getMode, onStop, onProgress }) {
+export function createScrollCamera({ camera, stops, sections, requestRender, getMode, onStop, onProgress, onPath, onText }) {
   const positions = new THREE.CatmullRomCurve3(stops.map((s) => new THREE.Vector3(...s.camera)), false, 'centripetal');
   const targets = new THREE.CatmullRomCurve3(stops.map((s) => new THREE.Vector3(...s.target)), false, 'centripetal');
   const n = stops.length;
@@ -31,7 +32,7 @@ export function createScrollCamera({ camera, stops, sections, requestRender, get
   const stepState = { u: 0 };
   let lastU = 0;
 
-  const intro = { t: 1, offset: new THREE.Vector3(0.9, 0.55, 1.3) };
+  const intro = { t: 1, offset: new THREE.Vector3(0.5, 0.35, 1.5) };
   const parallax = { x: 0, y: 0 };
 
   // Rest for the first and last 22% of each segment, smooth move in between.
@@ -53,6 +54,7 @@ export function createScrollCamera({ camera, stops, sections, requestRender, get
       camera.position.addScaledVector(right, parallax.x).addScaledVector(up, parallax.y);
       camera.lookAt(lookAt);
     }
+    onPath?.(u * (n - 1));
     requestRender();
   }
 
@@ -65,7 +67,6 @@ export function createScrollCamera({ camera, stops, sections, requestRender, get
   function setActive(index) {
     if (index === activeIndex) return;
     activeIndex = index;
-    sections.forEach((el, i) => el.classList.toggle('is-active', i === index));
     document.documentElement.dataset.stop = stops[index].section;
     onStop?.(index);
   }
@@ -84,14 +85,14 @@ export function createScrollCamera({ camera, stops, sections, requestRender, get
       stepState.u = goal;
       placeAt(goal);
     } else {
-      stepTween = gsap.to(stepState, { u: goal, duration: 0.7, ease: 'power2.inOut', onUpdate: () => placeAt(stepState.u) });
+      stepTween = gsap.to(stepState, { u: goal, duration: 1.1, ease: 'power2.inOut', onUpdate: () => placeAt(stepState.u) });
     }
   }
 
-  // Smooth scrolling (Lenis). Lenis honours prefers-reduced-motion itself, and we
-  // skip it entirely in static mode so the page scrolls natively.
+  // Smooth scrolling (Lenis) on desktop. Phones keep native touch scrolling, and
+  // static mode (reduced motion) keeps the browser's own scrolling untouched.
   let lenis = null;
-  if (getMode() !== 'static') {
+  if (getMode() === 'continuous') {
     lenis = new Lenis({ lerp: 0.09 });
     lenis.on('scroll', ScrollTrigger.update);
     gsap.ticker.add((time) => lenis.raf(time * 1000));
@@ -106,7 +107,7 @@ export function createScrollCamera({ camera, stops, sections, requestRender, get
       trigger: '#sections',
       start: 'top top',
       end: 'bottom bottom',
-      scrub: 0.5,
+      scrub: 0.6,
       onUpdate: (self) => onScroll(self.progress),
     },
   });
@@ -118,6 +119,22 @@ export function createScrollCamera({ camera, stops, sections, requestRender, get
     },
   });
   const trigger = timeline.scrollTrigger;
+
+  // Text: a section's copy shows once its pinned block is nearly in place and
+  // hides shortly after it starts to leave. This is separate from the camera's
+  // "nearest stop", so the words appear as the camera arrives, not half-way there.
+  function setText(i, active) {
+    sections[i].classList.toggle('is-active', !!active);
+    if (active) document.documentElement.dataset.align = stops[i].align;
+    onText?.(i, active);
+  }
+  const textTriggers = sections.map((el, i) => ScrollTrigger.create({
+    trigger: el,
+    start: 'top 20%',
+    end: 'bottom 75%',
+    onToggle: (self) => setText(i, self.isActive),
+  }));
+  textTriggers.forEach((st, i) => setText(i, !!st.isActive));
 
   function syncToScroll() {
     const p = trigger.progress;
@@ -139,16 +156,16 @@ export function createScrollCamera({ camera, stops, sections, requestRender, get
     },
     scrollToStop(i) {
       const top = trigger.start + (trigger.end - trigger.start) * (i / (n - 1));
-      if (lenis) lenis.scrollTo(top, { duration: 1.4 });
-      else window.scrollTo({ top, behavior: 'auto' });
+      if (lenis) lenis.scrollTo(top, { duration: 1.6 });
+      else window.scrollTo({ top, behavior: getMode() === 'static' ? 'auto' : 'smooth' });
     },
     /** Dolly in from a pulled-back position to the current stop. Resolves when done. */
-    playIntro() {
+    playIntro(duration = 3.2) {
       if (getMode() !== 'continuous') return Promise.resolve();
       intro.t = 0;
       placeAt(lastU);
       return new Promise((resolve) => {
-        gsap.to(intro, { t: 1, duration: 2.2, ease: 'power3.out', onUpdate: () => placeAt(lastU), onComplete: resolve });
+        gsap.to(intro, { t: 1, duration, ease: 'power3.out', onUpdate: () => placeAt(lastU), onComplete: resolve });
       });
     },
     /** Small camera offset from the pointer, in metres. Only used in continuous mode. */
@@ -158,7 +175,5 @@ export function createScrollCamera({ camera, stops, sections, requestRender, get
       parallax.y = y;
       placeAt(lastU);
     },
-    stopScroll() { lenis?.stop(); },
-    startScroll() { lenis?.start(); },
   };
 }

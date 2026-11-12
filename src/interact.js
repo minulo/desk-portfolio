@@ -2,64 +2,80 @@ import * as THREE from 'three';
 import { gsap } from 'gsap';
 
 /**
- * Pointer interactions on the 3D scene:
- *  - parallax: the camera drifts a few centimetres with the pointer (desktop, motion allowed)
- *  - hover: an object lifts slightly, the cursor becomes a pointer, a label follows the pointer
+ * Pointer interactions on the 3D scene (mouse / trackpad only):
+ *  - parallax: the camera drifts a few centimetres with the pointer
+ *  - swarm: particles near the pointer are pushed aside
+ *  - hover: an object lifts slightly, the cursor becomes a pointer, a label follows
  *  - click: scrolls to the section that object introduces
- * Everything is skipped on coarse pointers (touch) because there is no hover there.
+ * Touch screens have no hover, so all of this is skipped there.
  */
-export function createInteractions({ canvas, camera, holders, stops, scroll, requestRender, getMode, tooltip }) {
-  const fine = window.matchMedia('(pointer: fine)').matches;
-  if (!fine) return { dispose() {} };
+export function createInteractions({ canvas, camera, holders, stops, scroll, swarm, requestRender, invalidateShadows, getMode, tooltip }) {
+  if (!window.matchMedia('(pointer: fine)').matches) return;
 
   const raycaster = new THREE.Raycaster();
-  const ndc = new THREE.Vector2();
+  const ndc = new THREE.Vector2(0, 0);
   const byObject = new Map(stops.map((s, i) => [s.object, i]).filter(([o]) => o));
   const hoverable = holders.filter((h) => byObject.has(h.name));
+  const forward = new THREE.Vector3();
+  const hit = new THREE.Vector3();
   let hovered = null;
-  let pending = null;
-  let px = 0, py = 0;
+  let pickQueued = false;
+  let inside = false;
 
-  // Parallax target/current, eased on the GSAP ticker; renders only while moving.
   const target = { x: 0, y: 0 };
   const current = { x: 0, y: 0 };
-  function tick() {
-    if (getMode() !== 'continuous') return;
+  const push = { strength: 0 };
+
+  // Where the pointer's ray crosses the plane that faces the camera through the swarm.
+  function pointerOnSwarmPlane() {
+    raycaster.setFromCamera(ndc, camera);
+    camera.getWorldDirection(forward);
+    const denom = raycaster.ray.direction.dot(forward);
+    if (Math.abs(denom) < 1e-4) return null;
+    const t = hit.copy(swarm.center).sub(raycaster.ray.origin).dot(forward) / denom;
+    return t > 0 ? hit.copy(raycaster.ray.origin).addScaledVector(raycaster.ray.direction, t) : null;
+  }
+
+  gsap.ticker.add(() => {
+    if (getMode() === 'static') return;
+    // Camera parallax eases toward the pointer.
     const dx = target.x - current.x;
     const dy = target.y - current.y;
-    if (Math.abs(dx) < 1e-5 && Math.abs(dy) < 1e-5) return;
-    current.x += dx * 0.06;
-    current.y += dy * 0.06;
-    scroll.setParallax(current.x, current.y);
+    if (Math.abs(dx) > 1e-5 || Math.abs(dy) > 1e-5) {
+      current.x += dx * 0.05;
+      current.y += dy * 0.05;
+      scroll.setParallax(current.x, current.y);
+    }
+    swarm.setPointer(inside ? pointerOnSwarmPlane() : null, push.strength);
+  });
+
+  function lift(holder, y) {
+    const group = holder.getObjectByName('lift');
+    gsap.killTweensOf(group.position);
+    const done = () => { invalidateShadows(); requestRender(); };
+    if (getMode() === 'static') { group.position.y = y; done(); }
+    else gsap.to(group.position, { y, duration: 0.6, ease: 'power3.out', onUpdate: done });
   }
-  gsap.ticker.add(tick);
 
   function setHover(holder) {
     if (holder === hovered) return;
-    const motion = getMode() !== 'static';
-    if (hovered) {
-      const lift = hovered.getObjectByName('lift');
-      gsap.killTweensOf(lift.position);
-      if (motion) gsap.to(lift.position, { y: 0, duration: 0.5, ease: 'power3.out', onUpdate: requestRender });
-      else { lift.position.y = 0; requestRender(); }
-    }
+    if (hovered) lift(hovered, 0);
     hovered = holder;
     canvas.style.cursor = holder ? 'pointer' : '';
     tooltip.classList.toggle('is-visible', !!holder);
-    if (holder) {
-      const i = byObject.get(holder.name);
-      const section = document.querySelector(`[data-stop="${stops[i].section}"]`);
-      const title = section?.querySelector('h1, h2')?.textContent?.trim() ?? stops[i].section;
-      tooltip.innerHTML = `<span>${String(i).padStart(2, '0')}</span>${title}`;
-      const lift = holder.getObjectByName('lift');
-      gsap.killTweensOf(lift.position);
-      if (motion) gsap.to(lift.position, { y: 0.012, duration: 0.6, ease: 'power3.out', onUpdate: requestRender });
-      else { lift.position.y = 0.012; requestRender(); }
-    }
+    if (!holder) return;
+    const i = byObject.get(holder.name);
+    const section = document.querySelector(`[data-stop="${stops[i].section}"]`);
+    const title = section?.querySelector('h1, h2')?.textContent?.trim() ?? stops[i].section;
+    tooltip.replaceChildren(
+      Object.assign(document.createElement('span'), { textContent: String(i).padStart(2, '0') }),
+      document.createTextNode(title),
+    );
+    lift(holder, 0.014);
   }
 
   function pick() {
-    pending = null;
+    pickQueued = false;
     raycaster.setFromCamera(ndc, camera);
     const hits = raycaster.intersectObjects(hoverable, true);
     let holder = null;
@@ -71,38 +87,32 @@ export function createInteractions({ canvas, camera, holders, stops, scroll, req
     setHover(holder);
   }
 
-  function onMove(e) {
-    px = e.clientX;
-    py = e.clientY;
-    ndc.set((px / window.innerWidth) * 2 - 1, -(py / window.innerHeight) * 2 + 1);
-    target.x = ndc.x * 0.035;
-    target.y = ndc.y * 0.02;
-    tooltip.style.transform = `translate(${px + 18}px, ${py + 18}px)`;
-    if (!pending) pending = requestAnimationFrame(pick);
-  }
+  window.addEventListener('pointermove', (e) => {
+    if (e.pointerType === 'touch') return;
+    if (!inside) {
+      inside = true;
+      gsap.to(push, { strength: 1, duration: 0.6, overwrite: true });
+    }
+    ndc.set((e.clientX / window.innerWidth) * 2 - 1, -(e.clientY / window.innerHeight) * 2 + 1);
+    target.x = ndc.x * 0.045;
+    target.y = ndc.y * 0.025;
+    tooltip.style.transform = `translate(${e.clientX + 18}px, ${e.clientY + 18}px)`;
+    // Only pick when the pointer is over the canvas itself, not over text.
+    if (e.target === canvas) {
+      if (!pickQueued) { pickQueued = true; requestAnimationFrame(pick); }
+    } else {
+      setHover(null);
+    }
+  }, { passive: true });
 
-  function onLeave() {
+  document.documentElement.addEventListener('pointerleave', () => {
+    inside = false;
     target.x = target.y = 0;
+    gsap.to(push, { strength: 0, duration: 0.8, overwrite: true });
     setHover(null);
-  }
+  });
 
-  function onClick() {
-    if (!hovered) return;
-    scroll.scrollToStop(byObject.get(hovered.name));
-  }
-
-  window.addEventListener('pointermove', onMove, { passive: true });
-  document.addEventListener('pointerleave', onLeave);
-  canvas.addEventListener('click', onClick);
-  // Panels sit above the canvas; clicks on them should not reach the scene.
-  // (The canvas only receives clicks where no panel covers it.)
-
-  return {
-    dispose() {
-      gsap.ticker.remove(tick);
-      window.removeEventListener('pointermove', onMove);
-      document.removeEventListener('pointerleave', onLeave);
-      canvas.removeEventListener('click', onClick);
-    },
-  };
+  canvas.addEventListener('click', () => {
+    if (hovered) scroll.scrollToStop(byObject.get(hovered.name));
+  });
 }
