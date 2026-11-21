@@ -24,6 +24,7 @@ html[data-side='left'] { --art-x: 25%; }
   mask-image: linear-gradient(115deg, transparent 20%, #000 95%);
 }
 
+.art-word, .art-sigil, .art-dots { pointer-events: none; }
 .art-word {
   position: absolute;
   left: var(--art-x);
@@ -73,6 +74,7 @@ html.scene-ready #scene { opacity: 1; transform: none; }
   border-right: 14px solid var(--lime);
   transform: translateX(-135%) skewX(-14deg);
   will-change: transform;
+  pointer-events: none;
 }
 
 /* Clickable labels pinned to the 3D objects on the opening view. */

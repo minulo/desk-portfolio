@@ -1,7 +1,9 @@
 /* Page layout. Each section is two columns: an opaque colour block with the words, and
    an empty "window" through which the fixed art layer shows. Sections are ordinary
    document flow, so the page scrolls natively and can be as long as its content. */
-main { position: relative; z-index: 2; overflow-x: clip; }
+/* The page lets the pointer through to the art layer wherever there is no block. */
+main { position: relative; z-index: 2; overflow-x: clip; pointer-events: none; }
+.block { pointer-events: auto; }
 
 section {
   position: relative;

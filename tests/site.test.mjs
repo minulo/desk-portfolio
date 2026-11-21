@@ -4,7 +4,7 @@ import { test, before, after, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
-  loadPlaywright, CHROMIUM_ARGS, build, serve, builtSizes, glHook, SECTION_IDS, VIEWPORTS,
+  loadPlaywright, CHROMIUM_ARGS, build, serve, builtSizes, glHook, boxGltf, SECTION_IDS, VIEWPORTS,
 } from './helpers.mjs';
 
 const KB = 1024;
@@ -43,15 +43,18 @@ describe('production build size', () => {
 describe('in the browser', { skip }, () => {
   let browser;
   let preview;
+  let dev;
   const MAC = { viewport: { width: 1512, height: 982 }, deviceScaleFactor: 2 }; // 14" MacBook Pro, default scaling
 
   before(async () => {
     browser = await playwright.chromium.launch({ args: CHROMIUM_ARGS });
     preview = await serve('preview');
+    dev = await serve('dev');
   });
   after(async () => {
     await browser?.close();
     preview?.stop();
+    dev?.stop();
   });
 
   /**
@@ -174,8 +177,7 @@ describe('in the browser', { skip }, () => {
   });
 
   test('dev mode downloads at most 8 MB of JavaScript and never the icon library', async () => {
-    const dev = await serve('dev');
-    try {
+    {
       let bytes = 0;
       const urls = [];
       const record = (p) => p.on('response', async (r) => {
@@ -191,9 +193,60 @@ describe('in the browser', { skip }, () => {
         assert.deepEqual(urls.filter((u) => u.includes('simple-icons')).map((u) => u.split('/').pop().split('?')[0]), []);
         assert.ok(bytes <= 8 * 1024 * KB, `dev mode downloaded ${(bytes / 1024 / KB).toFixed(1)} MB of JavaScript`);
       });
-    } finally {
-      dev.stop();
     }
+  });
+
+  test('scrolling quickly through every section ends with the page, art layer and scene on the last one', async () => {
+    await withPage(MAC, {}, async (page) => {
+      await sceneReady(page);
+      for (const id of SECTION_IDS) { await goTo(page, id); await page.waitForTimeout(60); }
+      await page.waitForTimeout(1800);
+      const state = await page.evaluate(() => ({
+        section: document.documentElement.dataset.section,
+        art: document.documentElement.dataset.art,
+        scene: document.getElementById('scene').dataset.shown,
+      }));
+      assert.deepEqual(state, { section: 'contact', art: 'contact', scene: 'contact' });
+    });
+  });
+
+  test('when the scene script cannot be downloaded, the page still works and marks the scene as off', async () => {
+    const upfront = new Set(sizes.upfrontScripts);
+    const blockLazyScripts = (p) => p.route(/\.js(\?|$)/, (route) => {
+      const file = new URL(route.request().url()).pathname.split('/').pop();
+      return upfront.has(file) ? route.continue() : route.abort();
+    });
+    await withPage({ viewport: { width: 1280, height: 800 } }, { prepare: blockLazyScripts }, async (page, problems) => {
+      await page.waitForSelector('html.scene-off', { state: 'attached', timeout: 15000 });
+      const headings = await visibleHeadings(page);
+      assert.deepEqual(headings.filter((h) => !h.ok), []);
+      assert.deepEqual(problems.filter((p) => p.startsWith('pageerror')), []);
+      await goTo(page, 'tour');
+      await page.waitForTimeout(900);
+      assert.equal(await page.evaluate(() => document.documentElement.dataset.art), 'tour');
+    });
+  });
+
+  test('a model file named in the config replaces that object\'s placeholder', async () => {
+    const gltf = await boxGltf();
+    const useFixture = async (p) => {
+      await p.route('**/__fixture/box.gltf', (route) => route.fulfill({ contentType: 'model/gltf+json', body: gltf }));
+      await p.route('**/scene.config.js*', async (route) => {
+        const response = await route.fetch();
+        const original = await response.text();
+        const body = original.replace("id: 'mug', model: null", "id: 'mug', model: '/__fixture/box.gltf'");
+        assert.notEqual(body, original, 'the config has a mug entry with `model: null` to replace');
+        await route.fulfill({ response, body });
+      });
+    };
+    await withPage({ viewport: { width: 1280, height: 800 } }, { url: () => dev.url, prepare: useFixture }, async (page, problems) => {
+      await sceneReady(page);
+      await page.waitForTimeout(500);
+      assert.equal(await page.evaluate(() => document.getElementById('scene').dataset.models), '1');
+      assert.deepEqual(problems, []);
+      const { programs } = await gl(page);
+      assert.ok(programs <= 6, `${programs} shader programs linked with a model loaded`);
+    });
   });
 
   for (const [width, height] of VIEWPORTS) {

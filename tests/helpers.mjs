@@ -121,3 +121,36 @@ export const VIEWPORTS = [
   [360, 640], [390, 844], [768, 1024], [1024, 768], [1280, 720],
   [1366, 768], [1440, 900], [1920, 1080], [2560, 1080],
 ];
+
+/**
+ * A minimal glTF file (one magenta box, 2 x 1 x 1) as a string, for testing that a real
+ * model can replace a placeholder. Built from three's own BoxGeometry.
+ */
+export async function boxGltf() {
+  const { BoxGeometry } = await import('three');
+  const g = new BoxGeometry(2, 1, 1);
+  const position = g.getAttribute('position').array;
+  const normal = g.getAttribute('normal').array;
+  const index = Uint16Array.from(g.getIndex().array);
+  const bytes = Buffer.concat([Buffer.from(position.buffer), Buffer.from(normal.buffer), Buffer.from(index.buffer)]);
+  const count = position.length / 3;
+  return JSON.stringify({
+    asset: { version: '2.0' },
+    scene: 0,
+    scenes: [{ nodes: [0] }],
+    nodes: [{ mesh: 0 }],
+    meshes: [{ primitives: [{ attributes: { POSITION: 0, NORMAL: 1 }, indices: 2, material: 0 }] }],
+    materials: [{ pbrMetallicRoughness: { baseColorFactor: [1, 0.18, 0.53, 1] } }],
+    accessors: [
+      { bufferView: 0, componentType: 5126, count, type: 'VEC3', min: [-1, -0.5, -0.5], max: [1, 0.5, 0.5] },
+      { bufferView: 1, componentType: 5126, count, type: 'VEC3' },
+      { bufferView: 2, componentType: 5123, count: index.length, type: 'SCALAR' },
+    ],
+    bufferViews: [
+      { buffer: 0, byteOffset: 0, byteLength: position.byteLength },
+      { buffer: 0, byteOffset: position.byteLength, byteLength: normal.byteLength },
+      { buffer: 0, byteOffset: position.byteLength + normal.byteLength, byteLength: index.byteLength },
+    ],
+    buffers: [{ byteLength: bytes.length, uri: `data:application/octet-stream;base64,${bytes.toString('base64')}` }],
+  });
+}
