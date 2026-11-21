@@ -197,7 +197,7 @@ describe('in the browser', { skip }, () => {
   });
 
   for (const [width, height] of VIEWPORTS) {
-    test(`fits a ${width}x${height} screen: no sideways scroll, no heading wider than the screen`, async () => {
+    test(`fits a ${width}x${height} screen: no sideways scroll, no text wider than the screen or its box`, async () => {
       await withPage({ viewport: { width, height }, deviceScaleFactor: 1, isMobile: width < 800, hasTouch: width < 800 }, {}, async (page) => {
       await page.waitForTimeout(1200);
       const report = await page.evaluate(() => ({
@@ -206,9 +206,14 @@ describe('in the browser', { skip }, () => {
           .map((el) => ({ el, box: el.getBoundingClientRect() }))
           .filter(({ box }) => box.width > 0 && (box.left < -1 || box.right > window.innerWidth + 1))
           .map(({ el, box }) => `${el.tagName} "${el.textContent.trim().slice(0, 30)}" ${Math.round(box.left)}..${Math.round(box.right)}`),
+        // Text can also spill out of a box that itself fits the screen (and be cut off there).
+        spilling: [...document.querySelectorAll('main *')]
+          .filter((el) => !el.closest('[aria-hidden="true"]') && el.clientWidth > 0 && el.scrollWidth > el.clientWidth + 1)
+          .map((el) => `${el.tagName}.${el.className} "${el.textContent.trim().slice(0, 30)}" content ${el.scrollWidth}px in ${el.clientWidth}px`),
       }));
       assert.ok(report.sideways <= 0, `page is ${report.sideways}px wider than the screen`);
       assert.deepEqual(report.wide.slice(0, 5), []);
+      assert.deepEqual(report.spilling.slice(0, 5), []);
       });
     });
   }

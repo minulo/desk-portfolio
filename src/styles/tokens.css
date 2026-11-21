@@ -1,0 +1,27 @@
+/* The whole palette. Stark neutrals plus a few loud accents; one accent leads each section. */
+:root {
+  --ink: #0b0b0c;
+  --paper: #f2efe6;
+  --concrete: #8d8d86;
+  --yellow: #ffd400;   /* hazard yellow */
+  --magenta: #ff2e88;  /* electric magenta */
+  --crimson: #c81e36;
+  --lime: #b6ff3c;     /* neon: focus rings and small highlights only */
+
+  --display: 'Anton', Impact, 'Haettenschweiler', 'Arial Narrow Bold', sans-serif;
+  --label: 'Chakra Petch', 'Arial Narrow', ui-monospace, sans-serif;
+  --body: 'Space Grotesk Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  --pad: clamp(20px, 4.4vw, 76px);
+  --bar: 68px;
+  --slant: 4.5vw;      /* how far the blocks' inner edges lean */
+  --edge: 3px;         /* border weight */
+  --snap: cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+/* The art layer's field colour and line colour, set by the section on show. */
+html { --field: var(--yellow); --field-ink: var(--ink); }
+html[data-accent='magenta'] { --field: var(--magenta); --field-ink: var(--ink); }
+html[data-accent='paper'] { --field: var(--paper); --field-ink: var(--ink); }
+html[data-accent='ink'] { --field: var(--ink); --field-ink: var(--yellow); }
+html[data-art='contact'] { --field-ink: var(--magenta); }

@@ -1,0 +1,112 @@
+/* The art layer sits fixed behind the page: a flat colour field, halftone dots, a huge
+   outlined word, a slowly turning sigil, and the 3D canvas. Nothing here is content. */
+.art {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  background: var(--field);
+  color: var(--field-ink);
+  contain: strict;
+}
+
+/* Where the art sits: the half of the screen the text is not on. */
+html { --art-x: 75%; --art-y: 50%; }
+html[data-side='left'] { --art-x: 25%; }
+
+.art-dots {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(currentColor 30%, transparent 32%);
+  background-size: 15px 15px;
+  opacity: 0.2;
+  -webkit-mask-image: linear-gradient(115deg, transparent 20%, #000 95%);
+  mask-image: linear-gradient(115deg, transparent 20%, #000 95%);
+}
+
+.art-word {
+  position: absolute;
+  left: var(--art-x);
+  top: 50%;
+  margin: 0;
+  transform: translate(-50%, -50%) rotate(-7deg);
+  font: 400 clamp(15rem, 33vw, 42rem) / 0.8 var(--display);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  color: transparent;
+  -webkit-text-stroke: 3px var(--field-ink);
+  opacity: 0.5;
+  user-select: none;
+}
+
+.art-sigil {
+  position: absolute;
+  left: var(--art-x);
+  top: var(--art-y);
+  width: min(78vh, 46vw);
+  aspect-ratio: 1;
+  margin: calc(min(78vh, 46vw) / -2) 0 0 calc(min(78vh, 46vw) / -2);
+  opacity: 0.9;
+  will-change: transform;
+  animation: turn 120s linear infinite;
+}
+.art-sigil-text { font: 700 17px var(--label); letter-spacing: 0.34em; }
+@keyframes turn { to { transform: rotate(360deg); } }
+
+#scene {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  opacity: 0;
+  transform: scale(0.94);
+  transition: opacity 0.35s, transform 0.6s var(--snap);
+}
+html.scene-ready #scene { opacity: 1; transform: none; }
+
+/* The slanted block that crosses the art layer when the section changes. */
+.art-wipe {
+  position: absolute;
+  inset: -12% -34%;
+  background: var(--ink);
+  border-right: 14px solid var(--lime);
+  transform: translateX(-135%) skewX(-14deg);
+  will-change: transform;
+}
+
+/* Clickable labels pinned to the 3D objects on the opening view. */
+.art-tags { position: absolute; inset: 0; pointer-events: none; }
+.pin {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px 6px 8px;
+  border: 0;
+  background: var(--ink);
+  color: var(--paper);
+  font: 700 0.7rem var(--label);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  pointer-events: auto;
+  box-shadow: 4px 4px 0 var(--magenta);
+  opacity: 0;
+  transition: opacity 0.25s, box-shadow 0.12s;
+}
+.pin b { color: var(--yellow); }
+.pin::after { content: ''; position: absolute; left: 12px; top: 100%; width: 3px; height: 16px; background: var(--ink); }
+html.scene-ready[data-art='intro'] .pin { opacity: 1; }
+html:not([data-art='intro']) .pin { pointer-events: none; }
+.pin:hover, .pin.is-hot { background: var(--magenta); color: var(--ink); box-shadow: 4px 4px 0 var(--ink); }
+.pin:hover b, .pin.is-hot b { color: var(--ink); }
+
+@media (max-width: 860px) {
+  html, html[data-side='left'] { --art-x: 50%; --art-y: calc(var(--bar) + 21svh); }
+  .art-word { top: var(--art-y); font-size: clamp(9rem, 52vw, 20rem); }
+  .art-sigil { width: 40svh; margin: -20svh 0 0 -20svh; }
+  .pin { display: none; }
+}

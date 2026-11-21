@@ -1,154 +1,254 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-section="intro" data-art="intro" data-accent="yellow" data-side="right">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Minh Nguyen — After hours</title>
-    <meta name="description" content="Minh Nguyen, Associate Software Engineer at Canonical. A desk at night: follow the daemon from object to object." />
-    <meta name="theme-color" content="#07080d" />
-    <meta name="color-scheme" content="dark" />
-    <!-- Without JavaScript there is no 3D scene: show the text as a plain page. -->
-    <noscript>
-      <style>
-        #loader, #scene, .scrim, .meta, .dots, .daemon, .cursor-hint, .check, .tooltip { display: none !important; }
-        section { height: auto !important; }
-        .pin { position: static !important; height: auto !important; padding: 12vh 6vw 4vh !important; justify-content: flex-start !important; }
-        .panel { opacity: 1 !important; }
-        .panel a, .topbar { pointer-events: auto !important; }
-        .topbar { opacity: 1 !important; transform: none !important; }
-      </style>
-    </noscript>
+    <title>Minh Nguyen · Software Engineer</title>
+    <meta name="description" content="Minh Nguyen, Associate Software Engineer at Canonical. Platform tooling on one side, fast and accessible web on the other." />
+    <meta name="theme-color" content="#0b0b0c" />
+    <link rel="stylesheet" href="/src/styles/main.css" />
   </head>
   <body>
-    <div id="loader" role="progressbar" aria-label="Loading 3D scene" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-      <p class="loader-title">Rolling for initiative</p>
-      <div class="loader-foot">
-        <p id="loader-pct" aria-hidden="true">000</p>
-        <div class="loader-track"><div id="loader-bar"></div></div>
-      </div>
+    <a class="skip" href="#about">Skip to content</a>
+
+    <!-- Art layer: fixed behind the page. Everything in it is decoration. -->
+    <div class="art" aria-hidden="true">
+      <div class="art-field"></div>
+      <div class="art-dots"></div>
+      <p class="art-word" id="art-word">MN</p>
+      <svg class="art-sigil" viewBox="0 0 600 600" fill="none">
+        <defs><path id="sigil-ring" d="M300 300 m-236 0 a236 236 0 1 1 472 0 a236 236 0 1 1 -472 0" /></defs>
+        <circle cx="300" cy="300" r="286" stroke="currentColor" stroke-width="3" />
+        <circle cx="300" cy="300" r="268" stroke="currentColor" stroke-width="14" stroke-dasharray="2 12" />
+        <circle cx="300" cy="300" r="208" stroke="currentColor" stroke-width="2" />
+        <circle cx="300" cy="300" r="196" stroke="currentColor" stroke-width="6" stroke-dasharray="44 16 4 16" />
+        <text class="art-sigil-text" fill="currentColor"><textPath href="#sigil-ring" startOffset="0">PLATFORM TOOLING ✦ FAST ACCESSIBLE WEB ✦ OPEN SOURCE ✦ CHARMS AND ROCKS ✦ SHIP IT ✦ </textPath></text>
+        <path d="M300 112 L463 394 H137 Z" stroke="currentColor" stroke-width="4" />
+        <circle cx="300" cy="300" r="94" stroke="currentColor" stroke-width="2" />
+        <path d="M300 14 v36 M300 550 v36 M14 300 h36 M550 300 h36" stroke="currentColor" stroke-width="8" />
+        <path d="M300 100 l12 12 l-12 12 l-12 -12 Z M463 382 l12 12 l-12 12 l-12 -12 Z M137 382 l12 12 l-12 12 l-12 -12 Z" fill="currentColor" />
+      </svg>
+      <canvas id="scene"></canvas>
+      <div class="art-tags" id="art-tags"></div>
+      <div class="art-wipe" id="art-wipe"></div>
     </div>
 
-    <canvas id="scene" aria-hidden="true"></canvas>
-    <div class="scrim scrim-left" aria-hidden="true"></div>
-    <div class="scrim scrim-right" aria-hidden="true"></div>
-    <div class="grain" aria-hidden="true"></div>
-    <div id="progress" aria-hidden="true"></div>
-    <div id="tooltip" class="tooltip" aria-hidden="true"></div>
-    <p id="daemon" class="daemon" aria-hidden="true"><span>daemon</span><b id="daemon-name"></b></p>
-
-    <div id="check" class="check" role="status" aria-live="polite">
-      <span class="check-cmd"><i>$</i><span data-cmd></span></span>
-      <span class="check-roll">d20 <b data-die>00</b> <span data-sum></span></span>
-      <span class="check-verdict" data-verdict></span>
-    </div>
-
-    <header class="topbar">
-      <a href="#intro" data-goto="intro" class="wordmark">Minh Nguyen</a>
-      <p class="status"><span class="pulse"></span><span><i>class</i> Software Engineer</span><span><i>guild</i> Canonical</span></p>
-      <a href="#contact" data-goto="contact" class="cta ench">Say hello</a>
+    <header class="bar">
+      <a class="logo" href="#intro" aria-label="Minh Nguyen, back to top">MN</a>
+      <nav class="nav" aria-label="Sections">
+        <a href="#about"><b>01</b>Who</a>
+        <a href="#drops"><b>02</b>Drops</a>
+        <a href="#tour"><b>03</b>Tour</a>
+        <a href="#kit"><b>04</b>Kit</a>
+        <a href="#contact" class="nav-hot"><b>05</b>Hotline</a>
+      </nav>
     </header>
 
-    <div class="meta" aria-hidden="true">
-      <span class="meta-key">scene</span><span id="sec-index">01</span><span class="meta-sep">/</span><span class="meta-total">05</span>
-      <span id="sec-name" class="meta-name">Prologue</span>
-    </div>
-    <p class="cursor-hint" aria-hidden="true">Glowing objects can be clicked.</p>
-
-    <nav class="dots" aria-label="Sections">
-      <a href="#intro" data-goto="intro" data-label="Prologue" aria-label="Prologue"></a>
-      <a href="#about" data-goto="about" data-label="About" aria-label="About"></a>
-      <a href="#projects" data-goto="projects" data-label="Work" aria-label="Work"></a>
-      <a href="#experience" data-goto="experience" data-label="Experience" aria-label="Experience"></a>
-      <a href="#contact" data-goto="contact" data-label="Contact" aria-label="Contact"></a>
-    </nav>
-
-    <main id="sections">
-      <section id="intro" data-stop="intro" data-label="Prologue">
-        <div class="pin">
-          <div class="panel panel-intro">
-            <p class="eyebrow" data-rise>Portfolio · After hours</p>
-            <h1 data-split>Minh <em>Nguyen</em></h1>
-            <p class="role" data-rise>Associate Software Engineer · Canonical · Rochester, NY</p>
-            <p class="say v-kernel" data-rise><b class="voice">Kernel</b>Crafting software end to end — platform tooling on one side, fast and accessible web on the other, with a soft spot for thoughtful detail.</p>
-            <p class="narr" data-rise>It is late and the lamp is on. A daemon of light drifts over the desk, taking the shape of whatever I have been working with.</p>
-            <ol class="opts opts-grid">
-              <li data-rise><a class="opt ench" href="#about" data-goto="about" data-roll="mug"><span>Look at the mug.</span><small>About</small></a></li>
-              <li data-rise><a class="opt ench" href="#projects" data-goto="projects" data-roll="monitor"><span>Read the monitor.</span><small>Work</small></a></li>
-              <li data-rise><a class="opt ench" href="#experience" data-goto="experience" data-roll="keyboard"><span>Try the keyboard.</span><small>Experience</small></a></li>
-              <li data-rise><a class="opt ench" href="#contact" data-goto="contact" data-roll="phone"><span>Pick up the phone.</span><small>Contact</small></a></li>
-            </ol>
-            <p class="hint" data-rise aria-hidden="true"><span class="hint-line"></span>Scroll, or choose</p>
+    <main>
+      <!-- ============ INTRO ============ -->
+      <section id="intro" data-accent="yellow" data-side="right" data-word="MN" data-focus="desk">
+        <div class="block block--ink">
+          <p class="label"><span class="chip chip--yellow">Portfolio</span>Rochester, NY · 2026</p>
+          <h1><span>Minh</span> <span class="hl">Nguyen</span></h1>
+          <p class="role">Associate Software Engineer <b>@ Canonical</b></p>
+          <p class="lede">Crafting software end to end — platform tooling on one side, fast and accessible web on the other, with a soft spot for thoughtful detail.</p>
+          <p class="actions">
+            <a class="btn btn--yellow" href="#drops">See the drops <span aria-hidden="true">→</span></a>
+            <a class="btn btn--ghost" href="#contact">Hotline</a>
+          </p>
+          <ol class="index">
+            <li><a href="#about"><b>01</b>Who</a></li>
+            <li><a href="#drops"><b>02</b>Drops</a></li>
+            <li><a href="#tour"><b>03</b>Tour</a></li>
+            <li><a href="#kit"><b>04</b>Kit</a></li>
+            <li><a href="#contact"><b>05</b>Hotline</a></li>
+          </ol>
+        </div>
+        <div class="window"></div>
+        <div class="tape-wrap" aria-hidden="true"><div class="tape">
+          <div class="tape-track">
+            <span>gopkg-charmed ✦ Terraform ✦ Juju ✦ JAAS ✦ MicroK8s ✦ charms and rocks ✦ Sphinx docs ✦ CI/CD on charm-ci ✦ </span>
+            <span>gopkg-charmed ✦ Terraform ✦ Juju ✦ JAAS ✦ MicroK8s ✦ charms and rocks ✦ Sphinx docs ✦ CI/CD on charm-ci ✦ </span>
           </div>
+        </div></div>
+      </section>
+
+      <!-- ============ WHO ============ -->
+      <section id="about" data-accent="magenta" data-side="left" data-word="WHO" data-focus="mug">
+        <div class="window"></div>
+        <div class="block block--paper">
+          <p class="label"><span class="num">01</span>Who</p>
+          <h2>Who's at <span class="hl">the desk</span></h2>
+          <p>I'm a software engineer focused on building fast, accessible frontend experiences and dependable backend systems.</p>
+          <p>I've worked across startups, big tech, and research labs, turning ideas into production features and collaborating with teams to build inclusive, polished products.</p>
+          <div class="notice">
+            <p class="notice-head">Now playing</p>
+            <p>At Canonical: gopkg-charmed, the 12-factor charm replacing gopkg.in; Terraform, Juju, JAAS, and MicroK8s; charms and rocks; docs on Sphinx; CI/CD on charm-ci. Part-time Research Assistant at Inter.play Lab, on human-AI interaction.</p>
+          </div>
+          <dl class="facts">
+            <div><dt>School</dt><dd>University of Rochester</dd></div>
+            <div><dt>2026</dt><dd>M.S. Computer Science</dd></div>
+            <div><dt>2025</dt><dd>B.S. Computer Science, High Distinction</dd></div>
+          </dl>
+          <ul class="badges">
+            <li>MetaCTF top winner <b>6th of 1300</b></li>
+            <li>Dean's Scholarship</li>
+            <li>Master's Scholarship</li>
+          </ul>
         </div>
       </section>
 
-      <section id="about" data-stop="about" data-label="About" data-object="The mug">
-        <div class="pin">
-          <div class="panel">
-            <p class="eyebrow" data-rise><span>01</span>The mug</p>
-            <h2 data-split>A little <em>about me</em></h2>
-            <p class="say v-kernel" data-rise><b class="voice">Kernel</b>I'm a software engineer focused on building fast, accessible frontend experiences and dependable backend systems.</p>
-            <p class="say v-cache" data-rise><b class="voice">Cache</b>I've worked across startups, big tech, and research labs, turning ideas into production features and collaborating with teams to build inclusive, polished products.</p>
-            <p class="say v-compiler" data-rise><b class="voice">Compiler</b><span class="chk">type check passed</span>University of Rochester. M.S. Computer Science, 2026. B.S. Computer Science, High Distinction, 2025.</p>
-            <p class="feats" data-rise><i>feats</i>MetaCTF top winner (6th of 1300) · Dean's Scholarship · Master's Scholarship</p>
-          </div>
+      <!-- ============ DROPS ============ -->
+      <section id="drops" data-accent="paper" data-side="right" data-word="DROPS" data-focus="monitor">
+        <div class="block block--ink">
+          <p class="label"><span class="num">02</span>Drops</p>
+          <h2>The <span class="hl">drops</span></h2>
+          <ol class="drops">
+            <li>
+              <a class="drop" href="https://melcourses.com" rel="noopener">
+                <span class="drop-no">Drop 01</span>
+                <h3>Melcourses CDCS System</h3>
+                <p>A modern course description and discovery system for University of Rochester students, replacing an outdated CDCS workflow and supporting course planning for 1,200+ active users.</p>
+                <span class="drop-meta"><b>Frontend Lead</b>Next.js · React · TypeScript · SQL · Chakra UI</span>
+                <span class="drop-go">Live site <span aria-hidden="true">↗</span></span>
+              </a>
+            </li>
+            <li>
+              <a class="drop" href="https://advait.org/files/zhou_2024_k12_ML.pdf" rel="noopener">
+                <span class="drop-no">Drop 02</span>
+                <h3>Teacher Authoring Tool</h3>
+                <p>A research-backed authoring platform that helps K-12 teachers create interactive AI-literacy assignments and classroom activities.</p>
+                <span class="drop-meta"><b>Research Assistant</b>React · TypeScript · Redux · LESS</span>
+                <span class="drop-go">Published paper <span aria-hidden="true">↗</span></span>
+              </a>
+            </li>
+            <li>
+              <a class="drop" href="https://sonicfires2.github.io/landing-page-aif/" rel="noopener">
+                <span class="drop-no">Drop 03</span>
+                <h3>Anime Interest Floor Landing Page</h3>
+                <p>A responsive landing page for the University of Rochester's Anime Interest Floor, giving a 300+ member community a clearer home for events, identity, and organisation details.</p>
+                <span class="drop-meta"><b>Web Master</b>React · JavaScript · CSS · HTML</span>
+                <span class="drop-go">Live site <span aria-hidden="true">↗</span></span>
+              </a>
+            </li>
+          </ol>
+          <h3 class="sub">Collabs <small>open source, as <a href="https://github.com/minulo" rel="noopener">minulo</a></small></h3>
+          <ul class="collabs">
+            <li><a href="https://github.com/canonical/gopkg-charmed" rel="noopener"><b>canonical/gopkg-charmed</b><i>maintainer</i><span>The gopkg.in versioned-import-path service as a Go app, a rock, and a charm.</span></a></li>
+            <li><a href="https://github.com/canonical/haproxy-operator" rel="noopener"><b>canonical/haproxy-operator</b><i>contributor</i><span>The Juju charm for HAProxy.</span></a></li>
+            <li><a href="https://github.com/canonical/charmcraft" rel="noopener"><b>canonical/charmcraft</b><i>contributor</i><span>The CLI that builds, packs, and publishes charms.</span></a></li>
+            <li><a href="https://github.com/canonical/rockcraft" rel="noopener"><b>canonical/rockcraft</b><i>contributor</i><span>Builds rocks: OCI images based on Ubuntu.</span></a></li>
+            <li><a href="https://github.com/canonical/indico-operator" rel="noopener"><b>canonical/indico-operator</b><i>contributor</i><span>The Juju charm for Indico, CERN's event platform.</span></a></li>
+          </ul>
+        </div>
+        <div class="window"></div>
+      </section>
+
+      <!-- ============ TOUR ============ -->
+      <section id="tour" data-accent="ink" data-side="left" data-word="TOUR" data-focus="cone">
+        <div class="window"></div>
+        <div class="block block--crimson">
+          <p class="label"><span class="num">03</span>Tour</p>
+          <h2>On <span class="hl">tour</span></h2>
+          <ol class="tour">
+            <li class="is-now"><time>2026.06 — now</time><b>Associate Software Engineer</b><span>Canonical</span><i>Remote</i></li>
+            <li class="is-now"><time>2026.05 — now</time><b>Research Assistant</b><span>Inter.play Lab · University of Rochester</span><i>Rochester, NY</i></li>
+            <li><time>2024.11 — 2026.05</time><b>Technical Assistant II</b><span>Psychology Lab · University of Rochester</span><i>Rochester, NY</i></li>
+            <li><time>2025.06 — 2025.11</time><b>Software Engineer</b><span>Onc.AI · contract</span><i>San Francisco, CA</i></li>
+            <li><time>2024.01 — 2025.05</time><b>Teaching Assistant, CSC 280</b><span>University of Rochester</span><i>Rochester, NY</i></li>
+            <li><time>2022.01 — 2025.05</time><b>Webmaster</b><span>Anime Interest Floor (UR)</span><i>Rochester, NY</i></li>
+            <li><time>2024.12 — 2025.01</time><b>Software Engineer</b><span>UpStart</span><i>Vietnam · Remote</i></li>
+            <li><time>2023.12 — 2024.10</time><b>Frontend Lead</b><span>RocLab · University of Rochester</span><i>Rochester, NY</i></li>
+            <li><time>2024.05 — 2024.08</time><b>Software Engineer Intern</b><span>Salesforce</span><i>San Francisco, CA</i></li>
+            <li><time>2023.04 — 2024.05</time><b>Research Assistant</b><span>ROC-HCI Lab</span><i>Rochester, NY</i></li>
+            <li><time>2023.05 — 2023.08</time><b>Software Engineer Intern</b><span>Onc.AI · data team</span><i>San Jose, CA</i></li>
+            <li><time>2022.06 — 2022.07</time><b>Digital Transformation Consultant</b><span>PwC · internship</span><i>Hanoi, Vietnam</i></li>
+          </ol>
+          <h3 class="sub">Encore <small>volunteering</small></h3>
+          <ol class="tour tour--encore">
+            <li><time>2023.01 — 2025.05</time><b>Communication Team</b><span>DandyHacks · University of Rochester</span><i>Rochester, NY</i></li>
+            <li><time>2026.04</time><b>Guest Handler</b><span>Tora-Con · RIT</span><i>Rochester, NY</i></li>
+          </ol>
         </div>
       </section>
 
-      <section id="projects" data-stop="projects" data-label="Work" data-object="The monitor">
-        <div class="pin">
-          <div class="panel">
-            <p class="eyebrow" data-rise><span>02</span>The monitor</p>
-            <h2 data-split>Quest <em>log</em></h2>
-            <ul class="rows">
-              <li data-rise><a class="ench" href="https://melcourses.com" rel="noopener"><span class="row-tag">done</span><span class="row-main"><strong>Melcourses CDCS System</strong><small>Frontend Lead · Next.js, React, TypeScript · 1,200+ users</small></span><span class="row-arrow" aria-hidden="true">↗</span></a></li>
-              <li data-rise><a class="ench" href="https://advait.org/files/zhou_2024_k12_ML.pdf" rel="noopener"><span class="row-tag">done</span><span class="row-main"><strong>Teacher Authoring Tool</strong><small>Research Assistant · React, TypeScript, Redux · published paper</small></span><span class="row-arrow" aria-hidden="true">↗</span></a></li>
-              <li data-rise><a class="ench" href="https://sonicfires2.github.io/landing-page-aif/" rel="noopener"><span class="row-tag">done</span><span class="row-main"><strong>Anime Interest Floor landing page</strong><small>Web Master · React · 300+ member community</small></span><span class="row-arrow" aria-hidden="true">↗</span></a></li>
+      <!-- ============ KIT ============ -->
+      <section id="kit" data-accent="yellow" data-side="right" data-word="KIT" data-focus="keyboard">
+        <div class="block block--paper">
+          <p class="label"><span class="num">04</span>Kit</p>
+          <h2>The <span class="hl">kit</span></h2>
+          <div class="kit">
+            <h3>Languages</h3>
+            <ul class="stickers">
+              <li><svg><use href="icons.svg#typescript"></use></svg>TypeScript</li>
+              <li><svg><use href="icons.svg#javascript"></use></svg>JavaScript</li>
+              <li><svg><use href="icons.svg#python"></use></svg>Python</li>
+              <li><svg><use href="icons.svg#go"></use></svg>Go</li>
+              <li><svg><use href="icons.svg#rust"></use></svg>Rust</li>
+              <li><svg><use href="icons.svg#java"></use></svg>Java</li>
+              <li><svg><use href="icons.svg#cpp"></use></svg>C / C++</li>
             </ul>
-            <p class="side" data-rise><i>side quests</i>Open source at Canonical, as <a href="https://github.com/minulo" rel="noopener">minulo</a></p>
-            <p class="chips" data-rise>
-              <a class="chip ench" href="https://github.com/canonical/gopkg-charmed" rel="noopener">gopkg-charmed<small>maintainer</small></a>
-              <a class="chip ench" href="https://github.com/canonical/haproxy-operator" rel="noopener">haproxy-operator</a>
-              <a class="chip ench" href="https://github.com/canonical/charmcraft" rel="noopener">charmcraft</a>
-              <a class="chip ench" href="https://github.com/canonical/rockcraft" rel="noopener">rockcraft</a>
-              <a class="chip ench" href="https://github.com/canonical/indico-operator" rel="noopener">indico-operator</a>
-            </p>
+            <h3>Frontend</h3>
+            <ul class="stickers">
+              <li><svg><use href="icons.svg#react"></use></svg>React</li>
+              <li><svg><use href="icons.svg#nextjs"></use></svg>Next.js</li>
+              <li><svg><use href="icons.svg#redux"></use></svg>Redux</li>
+              <li><svg><use href="icons.svg#react"></use></svg>React Native</li>
+              <li>Accessibility</li>
+              <li>Phaser.js</li>
+            </ul>
+            <h3>Backend and data</h3>
+            <ul class="stickers">
+              <li><svg><use href="icons.svg#nodejs"></use></svg>Node.js</li>
+              <li><svg><use href="icons.svg#fastapi"></use></svg>FastAPI</li>
+              <li><svg><use href="icons.svg#postgresql"></use></svg>PostgreSQL</li>
+              <li><svg><use href="icons.svg#mongodb"></use></svg>MongoDB</li>
+              <li><svg><use href="icons.svg#firebase"></use></svg>Firebase</li>
+              <li>RAG / LLM services</li>
+            </ul>
+            <h3>Infra and cloud</h3>
+            <ul class="stickers">
+              <li><svg><use href="icons.svg#kubernetes"></use></svg>Kubernetes</li>
+              <li>MicroK8s</li>
+              <li>Juju charms</li>
+              <li><svg><use href="icons.svg#terraform"></use></svg>Terraform</li>
+              <li><svg><use href="icons.svg#docker"></use></svg>Docker</li>
+              <li><svg><use href="icons.svg#gcp"></use></svg>GCP</li>
+              <li>AWS S3</li>
+              <li>CI/CD</li>
+              <li><svg><use href="icons.svg#ubuntu"></use></svg>Ubuntu / Linux</li>
+            </ul>
+            <h3>Testing and tooling</h3>
+            <ul class="stickers">
+              <li><svg><use href="icons.svg#pytest"></use></svg>Pytest</li>
+              <li><svg><use href="icons.svg#jest"></use></svg>Jest / RTL</li>
+              <li><svg><use href="icons.svg#cypress"></use></svg>Cypress</li>
+              <li><svg><use href="icons.svg#selenium"></use></svg>Selenium</li>
+              <li><svg><use href="icons.svg#sphinx"></use></svg>Sphinx / Read the Docs</li>
+              <li><svg><use href="icons.svg#githubactions"></use></svg>GitHub Actions</li>
+              <li><svg><use href="icons.svg#git"></use></svg>Git</li>
+              <li><svg><use href="icons.svg#vite"></use></svg>Vite / Webpack</li>
+            </ul>
           </div>
         </div>
+        <div class="window"></div>
       </section>
 
-      <section id="experience" data-stop="experience" data-label="Experience" data-object="The keyboard">
-        <div class="pin">
-          <div class="panel">
-            <p class="eyebrow" data-rise><span>03</span>The keyboard</p>
-            <h2 data-split>Where I've <em>been</em></h2>
-            <p class="say v-scheduler trim" data-rise><b class="voice">Scheduler</b>Now running at Canonical: gopkg-charmed, the 12-factor charm replacing gopkg.in.</p>
-            <ol class="rows">
-              <li data-rise><div><span class="row-year">2026 — now</span><span class="row-main"><strong>Associate Software Engineer</strong><small>Canonical</small></span></div></li>
-              <li data-rise><div><span class="row-year">2026 — now</span><span class="row-main"><strong>Research Assistant</strong><small>Inter.play Lab · University of Rochester</small></span></div></li>
-              <li data-rise><div><span class="row-year">2025</span><span class="row-main"><strong>Software Engineer</strong><small>Onc.AI · contract</small></span></div></li>
-              <li data-rise><div><span class="row-year">2024</span><span class="row-main"><strong>Software Engineer Intern</strong><small>Salesforce</small></span></div></li>
-              <li data-rise><div><span class="row-year">2023 — 24</span><span class="row-main"><strong>Frontend Lead</strong><small>RocLab · University of Rochester</small></span></div></li>
-            </ol>
-            <p class="more" data-rise><a href="https://www.linkedin.com/in/minh-nguyen-98a48a245/" rel="noopener"><span class="more-full">+ 6 earlier roles</span><span class="more-trim">+ 8 more roles</span> on LinkedIn ↗</a></p>
-          </div>
-        </div>
-      </section>
-
-      <section id="contact" data-stop="contact" data-label="Contact" data-object="The phone">
-        <div class="pin">
-          <div class="panel">
-            <p class="eyebrow" data-rise><span>04</span>The phone</p>
-            <h2 data-split>Let's <em>talk</em></h2>
-            <p class="say v-socket" data-rise><b class="voice">Socket</b>Connection open. Email is the fastest way to reach me.</p>
-            <ol class="opts">
-              <li data-rise><a class="opt ench" href="mailto:mnguyen31@u.rochester.edu"><span>Write an email.</span><small>mnguyen31@u.rochester.edu</small></a></li>
-              <li data-rise><a class="opt ench" href="https://github.com/Sonicfires2" rel="noopener"><span>Browse the code.</span><small>GitHub · Sonicfires2</small></a></li>
-              <li data-rise><a class="opt ench" href="https://github.com/minulo" rel="noopener"><span>See the open-source work.</span><small>GitHub · minulo</small></a></li>
-              <li data-rise><a class="opt ench" href="https://www.linkedin.com/in/minh-nguyen-98a48a245/" rel="noopener"><span>Connect.</span><small>LinkedIn</small></a></li>
-              <li data-rise><a class="opt ench" href="Minh_Nguyen_Resume.pdf" download><span>Take the résumé.</span><small>PDF</small></a></li>
-            </ol>
-          </div>
+      <!-- ============ HOTLINE ============ -->
+      <section id="contact" data-accent="ink" data-side="left" data-word="CALL" data-focus="phone">
+        <div class="window"></div>
+        <div class="block block--magenta">
+          <p class="label"><span class="num">05</span>Hotline</p>
+          <h2>Hot<span class="hl">line</span></h2>
+          <p class="lede">Email is the fastest way to reach me.</p>
+          <a class="mail" href="mailto:mnguyen31@u.rochester.edu">mnguyen31@<wbr />u.rochester.edu</a>
+          <ul class="lines">
+            <li><a class="btn btn--ink" href="https://github.com/Sonicfires2" rel="noopener"><svg><use href="icons.svg#github"></use></svg>GitHub <small>Sonicfires2</small></a></li>
+            <li><a class="btn btn--ink" href="https://github.com/minulo" rel="noopener"><svg><use href="icons.svg#github"></use></svg>Open source <small>minulo</small></a></li>
+            <li><a class="btn btn--ink" href="https://www.linkedin.com/in/minh-nguyen-98a48a245/" rel="noopener">LinkedIn</a></li>
+            <li><a class="btn btn--paper" href="Minh_Nguyen_Resume.pdf" download>Résumé <small>PDF</small></a></li>
+          </ul>
+          <p class="foot">Minh Nguyen · Rochester, NY · 2026</p>
         </div>
       </section>
     </main>
