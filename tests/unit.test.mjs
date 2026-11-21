@@ -225,6 +225,83 @@ test('cancelling one tracked tween leaves the other counted', () => {
   assert.equal(tracker.active, 1);
 });
 
+/**
+ * A clock that runs every callback queued for a frame, and whose time moves on by
+ * `drift` each time it is read, as a real clock does between two callbacks of one frame.
+ */
+function frameClock() {
+  let time = 0;
+  let queue = [];
+  const clock = {
+    drift: 0,
+    raf: (cb) => { queue.push(cb); return queue.length; },
+    now: () => { const t = time; time += clock.drift; return t; },
+    tick(ms) { time += ms; const run = queue; queue = []; for (const cb of run) cb(time); },
+  };
+  return clock;
+}
+
+test('a tween started with the same key replaces the one still running, so the newest has the last word', () => {
+  // The case that left a hovered object stuck in the air: "up" and "down" start within
+  // one frame, and on the last frame the clock passes the finish line between their two
+  // callbacks. "Down" finishes first, then "up" finishes a frame later and wins.
+  const clock = frameClock();
+  const tracker = createTweenTracker({ raf: clock.raf, now: clock.now });
+  const thing = {};
+  let height = 0;
+  clock.drift = 0.01;
+  tracker.run({ key: thing, duration: 150, onFrame: (p) => { height = 0.02 * p; } });
+  tracker.run({ key: thing, duration: 150, onFrame: (p) => { height = 0.02 * (1 - p); } });
+  assert.equal(tracker.active, 1, 'the replaced tween no longer counts');
+  clock.drift = 0.5;
+  clock.tick(149.8);
+  for (let i = 0; i < 4; i++) clock.tick(16);
+  assert.equal(height, 0);
+  assert.equal(tracker.active, 0);
+});
+
+test('tweens with different keys, or with none, do not replace each other', () => {
+  const clock = frameClock();
+  const tracker = createTweenTracker({ raf: clock.raf, now: clock.now });
+  const seen = [];
+  tracker.run({ key: 'a', duration: 50, onFrame: (p) => { if (p === 1) seen.push('a'); } });
+  tracker.run({ key: 'b', duration: 50, onFrame: (p) => { if (p === 1) seen.push('b'); } });
+  tracker.run({ duration: 50, onFrame: (p) => { if (p === 1) seen.push('none 1'); } });
+  tracker.run({ duration: 50, onFrame: (p) => { if (p === 1) seen.push('none 2'); } });
+  assert.equal(tracker.active, 4);
+  for (let i = 0; i < 10; i++) clock.tick(16);
+  assert.deepEqual(seen.sort(), ['a', 'b', 'none 1', 'none 2']);
+  assert.equal(tracker.active, 0);
+});
+
+test('a key is free again once its tween has finished or been cancelled', () => {
+  const clock = frameClock();
+  const tracker = createTweenTracker({ raf: clock.raf, now: clock.now });
+  let finished = 0;
+  tracker.run({ key: 'k', duration: 30, onFrame() {}, onDone: () => { finished++; } });
+  for (let i = 0; i < 5; i++) clock.tick(16);
+  const cancel = tracker.run({ key: 'k', duration: 30, onFrame() {}, onDone: () => { finished++; } });
+  cancel();
+  tracker.run({ key: 'k', duration: 30, onFrame() {}, onDone: () => { finished++; } });
+  for (let i = 0; i < 5; i++) clock.tick(16);
+  assert.equal(finished, 2);
+  assert.equal(tracker.active, 0);
+});
+
+test('a tracker can cancel whatever is running under a key, and ignores a key with nothing running', () => {
+  const clock = frameClock();
+  const tracker = createTweenTracker({ raf: clock.raf, now: clock.now });
+  let value = 0;
+  tracker.run({ key: 'k', duration: 100, onFrame: (p) => { value = p; } });
+  clock.tick(16);
+  const before = value;
+  tracker.cancel('k');
+  tracker.cancel('nothing here');
+  for (let i = 0; i < 10; i++) clock.tick(16);
+  assert.equal(value, before);
+  assert.equal(tracker.active, 0);
+});
+
 // ---------- featureCamera ----------
 const ball = { centre: [1, 0.5, -2], radius: 0.3, from: [0, 0], fill: 0.5, fov: 30 };
 const standOff = (v) => Math.hypot(v.camera[0] - v.target[0], v.camera[1] - v.target[1], v.camera[2] - v.target[2]);

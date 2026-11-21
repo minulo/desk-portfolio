@@ -374,14 +374,26 @@ describe('in the browser', { skip }, () => {
       await page.evaluate(() => window.scrollBy({ top: 200, behavior: 'instant' }));
       await page.waitForTimeout(400);
       assert.equal(await page.evaluate(() => document.documentElement.dataset.section), 'drops');
-      const before = await page.evaluate(() => window.scrollY);
-      const a = await gl(page);
-      // The featured object sits in the middle of the art window.
+      // The featured object sits in the middle of the art window. Put the pointer on it
+      // first and let the hover finish, so the frames counted below come from the click.
       const x = (await page.evaluate(() => document.documentElement.dataset.side)) === 'left' ? 360 : 1080;
-      await page.mouse.click(x, 450);
+      await page.mouse.move(x - 40, 470);
+      await page.mouse.move(x, 450, { steps: 5 });
+      await page.waitForTimeout(900);
+      assert.equal(await page.evaluate(() => document.getElementById('scene').style.cursor), 'pointer', 'the pointer is on the object');
+      const still = await gl(page);
+      await page.waitForTimeout(400);
+      assert.equal((await gl(page)).frames, still.frames, 'the scene was not at rest before the click');
+
+      const before = await page.evaluate(() => window.scrollY);
+      await page.mouse.down();
+      await page.mouse.up();
       await page.waitForTimeout(1200);
-      assert.ok((await gl(page)).frames - a.frames >= 3, 'the object did not react to the click');
+      const frames = (await gl(page)).frames - still.frames;
+      assert.ok(frames >= 5, `the object did not bounce: ${frames} frames drawn after the click`);
       assert.equal(await page.evaluate(() => window.scrollY), before, 'the page jumped');
+      await page.waitForTimeout(300);
+      assert.equal((await gl(page)).frames - still.frames, frames, 'the bounce never stopped');
     });
   });
 
@@ -444,11 +456,14 @@ describe('in the browser', { skip }, () => {
       const before = await state();
       assert.deepEqual([before.world, before.pressed, before.scene], ['', 'false', '']);
       const drawn = (await gl(page)).frames;
+      const named = (pressed) => page.getByRole('button', { name: 'Static mode', exact: true, pressed }).count();
+      assert.equal(await named(false), 1, 'the switch is announced as "Static mode", not pressed');
 
       await page.click('#world');
       await page.waitForFunction(() => document.getElementById('scene').dataset.world === 'static', null, { timeout: 8000 });
       const on = await state();
       assert.deepEqual([on.world, on.pressed, on.scene], ['static', 'true', 'static']);
+      assert.equal(await named(true), 1, 'the switch keeps its name and is announced as pressed');
       assert.notEqual(on.background, before.background, 'the page background changes');
       assert.ok((await gl(page)).frames > drawn, 'the scene was redrawn in the new look');
 
@@ -569,30 +584,71 @@ describe('in the browser', { skip }, () => {
     });
   });
 
-  test('every keyboard focus ring uses two colours that contrast, so it shows on any background', async () => {
-    // Reduced motion switches transitions off, so each ring is read in its final state
-    // instead of part-way through a button's 0.12 s shadow fade.
-    await withPage({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' }, {}, async (page) => {
-      await page.waitForTimeout(800);
-      const stops = await page.evaluate(() => document.querySelectorAll('a[href], button:not([tabindex="-1"])').length);
-      const weak = [];
-      for (let i = 0; i < stops; i++) {
-        await page.keyboard.press('Tab');
-        const ring = await page.evaluate(() => {
-          const el = document.activeElement;
-          const cs = getComputedStyle(el);
-          const rgb = (str) => /rgba?\(([^)]+)\)/.exec(str)?.[1].split(/[,\s/]+/).slice(0, 3).map(Number);
-          const lum = (c) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
-          const outline = cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) >= 2 ? rgb(cs.outlineColor) : null;
-          const shadow = cs.boxShadow !== 'none' ? rgb(cs.boxShadow) : null;
-          let ratio = 0;
-          if (outline && shadow) { const [hi, lo] = [lum(outline), lum(shadow)].sort((a, b) => b - a); ratio = (hi + 0.05) / (lo + 0.05); }
-          return { what: `${el.tagName}.${el.className} "${el.textContent.trim().slice(0, 24)}"`, ratio };
+  for (const mode of ['clean', 'Static']) {
+    test(`in ${mode} mode, every keyboard focus ring uses two colours that contrast, so it shows on any background`, async () => {
+      // Reduced motion switches transitions off, so each ring is read in its final state
+      // instead of part-way through a button's 0.12 s shadow fade.
+      await withPage({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' }, {}, async (page) => {
+        await page.waitForTimeout(800);
+        if (mode === 'Static') {
+          // Switched on from script: a real click would move the place Tab starts from.
+          await page.evaluate(() => document.getElementById('world').click());
+          await page.waitForFunction(() => document.documentElement.dataset.world === 'static');
+        }
+        const stops = await page.evaluate(() => document.querySelectorAll('a[href], button:not([tabindex="-1"])').length);
+        const weak = [];
+        for (let i = 0; i < stops; i++) {
+          await page.keyboard.press('Tab');
+          const ring = await page.evaluate(() => {
+            const el = document.activeElement;
+            const cs = getComputedStyle(el);
+            const rgb = (str) => /rgba?\(([^)]+)\)/.exec(str)?.[1].split(/[,\s/]+/).slice(0, 3).map(Number);
+            const lum = (c) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
+            const outline = cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) >= 2 ? rgb(cs.outlineColor) : null;
+            const shadow = cs.boxShadow !== 'none' ? rgb(cs.boxShadow) : null;
+            let ratio = 0;
+            if (outline && shadow) { const [hi, lo] = [lum(outline), lum(shadow)].sort((a, b) => b - a); ratio = (hi + 0.05) / (lo + 0.05); }
+            return { what: `${el.tagName}.${el.className} "${el.textContent.trim().slice(0, 24)}"`, ratio };
+          });
+          if (ring.ratio < 9) weak.push(`${ring.what}: ${ring.ratio.toFixed(1)}:1`);
+        }
+        assert.ok(stops > 20, `only ${stops} focus stops found`);
+        assert.deepEqual(weak.slice(0, 6), []);
+      });
+    });
+  }
+
+  test('small pieces keep to their box: the notice header, the flip label, the on-screen display', async () => {
+    const overlap = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+    for (const [width, height] of [[1024, 768], [1440, 900], [1920, 1080]]) {
+      await withPage({ viewport: { width, height }, reducedMotion: 'reduce' }, {}, async (page) => {
+        await page.waitForTimeout(500);
+        // The header bar of the "Now playing" notice runs the full width of its box.
+        const notice = await page.evaluate(() => {
+          const box = document.querySelector('.notice');
+          return { head: box.querySelector('.notice-head').getBoundingClientRect().width, inner: box.clientWidth };
         });
-        if (ring.ratio < 9) weak.push(`${ring.what}: ${ring.ratio.toFixed(1)}:1`);
-      }
-      assert.ok(stops > 20, `only ${stops} focus stops found`);
-      assert.deepEqual(weak.slice(0, 6), []);
+        assert.ok(Math.abs(notice.head - notice.inner) <= 1, `${width}px: the notice header is ${notice.head}px in a ${notice.inner}px box`);
+        // The channel-flip label fits the art window (half the screen here), longest label included.
+        await page.click('#world');
+        const label = await page.evaluate(() => {
+          const el = document.getElementById('flip-channel');
+          return { text: el.textContent, width: el.getBoundingClientRect().width };
+        });
+        assert.equal(label.text, 'NO SIGNAL');
+        assert.ok(label.width <= width / 2 - 24, `${width}px: "${label.text}" is ${Math.round(label.width)}px wide in a ${width / 2}px window`);
+      });
+    }
+    // On a phone held sideways the display's two top labels do not run into each other.
+    await withPage({ viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true }, {}, async (page) => {
+      await page.waitForTimeout(500);
+      const boxes = await page.evaluate(() => ['.osd-play', '.osd-channel'].map((sel) => {
+        const el = document.querySelector(sel);
+        const r = el.getBoundingClientRect();
+        return { shown: getComputedStyle(el).display !== 'none', left: r.left, right: r.right, top: r.top, bottom: r.bottom };
+      }));
+      assert.ok(boxes[1].shown, 'the channel number is shown');
+      assert.ok(!boxes[0].shown || !overlap(boxes[0], boxes[1]), 'PLAY overlaps the channel number');
     });
   });
 

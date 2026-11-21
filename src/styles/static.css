@@ -12,6 +12,12 @@ html[data-world='static'] {
   --split-b: var(--magenta);
 }
 html[data-world='static'][data-art] { --wall: #040405; --wall-ink: var(--accent); }
+/* The two split colours must not match the section's own accent, or one half of the
+   split disappears into the word. Set on <html> for the art layer and on each section. */
+html[data-world='static'][data-accent='cyan'],
+html[data-world='static'] [data-accent='cyan'] { --split-a: var(--yellow); }
+html[data-world='static']:is([data-accent='magenta'], [data-accent='crimson']),
+html[data-world='static'] :is([data-accent='magenta'], [data-accent='crimson']) { --split-b: var(--yellow); }
 html[data-world='static'] body { background: #040405; }
 
 /* Every panel goes dark, paper ones included. */
@@ -65,3 +71,7 @@ html[data-world='static'] body::after {
   pointer-events: none;
   background: repeating-linear-gradient(0deg, rgba(4, 4, 5, 0.34) 0 1px, transparent 1px 3px);
 }
+
+/* Last on purpose: none of the glows above may replace the ink half of the two-colour
+   focus ring (base.css). */
+html[data-world='static'] :is(a, button):focus-visible { box-shadow: 0 0 0 3px var(--ink); }

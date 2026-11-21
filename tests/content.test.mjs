@@ -1,7 +1,7 @@
 // Checks on the page's markup and data files that need no browser.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { ROOT, SECTION_IDS } from './helpers.mjs';
 
@@ -23,6 +23,7 @@ test('every section has the attributes the art layer reads, with allowed values'
     assert.match(attr(s, 'data-channel') ?? '', /^\d{2}$/, `${id}: data-channel should be two digits`);
     assert.ok(['left', 'right'].includes(attr(s, 'data-side')), `${id}: data-side="${attr(s, 'data-side')}"`);
     assert.ok(attr(s, 'data-word')?.length > 0, `${id}: data-word is missing`);
+    assert.ok(attr(s, 'data-name')?.length > 0, `${id}: data-name (shown on the display) is missing`);
   }
 });
 
@@ -83,9 +84,13 @@ test('channels are numbered in page order, starting at 00', () => {
 });
 
 test('no pure black or pure white is used in the styles or the 3D palette', () => {
-  const files = ['tokens.css', 'base.css', 'art.css', 'layout.css', 'components.css'].map((f) => ['src', 'styles', f])
+  const styles = readdirSync(path.join(ROOT, 'src', 'styles')).filter((f) => f.endsWith('.css'));
+  assert.ok(styles.includes('static.css'), 'the other-world stylesheet, which defines the deepest black, is checked too');
+  const files = styles.map((f) => ['src', 'styles', f])
     .concat([['src', 'scene', 'objects.js'], ['src', 'scene', 'scene.js'], ['src', 'scene', 'toon.js'], ['index.html']]);
-  const pure = /#(?:000|fff|000000|ffffff)\b|0x(?:000000|ffffff)\b|(?<![-\w])(?:black|white)\s*[;,)]|rgba?\(\s*(?:0\s*,\s*0\s*,\s*0|255\s*,\s*255\s*,\s*255)\s*[,)]/gi;
+  // Hex in 3, 4, 6 or 8 digits (with any alpha), 0x literals, the keywords, and rgb() in
+  // both the comma and the space form.
+  const pure = /#(?:0{3,4}|f{3,4}|0{6}(?:[0-9a-f]{2})?|f{6}(?:[0-9a-f]{2})?)\b|0x(?:000000|ffffff)\b|(?<![-\w])(?:black|white)\s*[;,)]|rgba?\(\s*(?:0[\s,]+0[\s,]+0|255[\s,]+255[\s,]+255)\s*[,/)]/gi;
   const found = [];
   for (const parts of files) {
     const text = read(...parts).replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, ''); // comments may name them
@@ -99,6 +104,14 @@ test('the Static switch is a real button that says whether it is on', () => {
   assert.ok(button, 'there is a <button id="world">');
   assert.equal(attr(button, 'type'), 'button');
   assert.equal(attr(button, 'aria-pressed'), 'false');
+});
+
+test('the Static switch has one fixed name, so its state is only said once', () => {
+  const button = tags('button').find((t) => attr(t, 'id') === 'world');
+  // With aria-pressed, a name that also changed ("Clean" / "Static") would be read out
+  // as "Clean, not pressed". The label names what the button controls.
+  assert.equal(attr(button, 'aria-label'), 'Static mode');
+  assert.match(read('index.html'), /id="world"[^>]*>\s*<span>Static<\/span>/, 'the visible label contains the name');
 });
 
 test('every section carries a stamped serial, and decorative barcodes are hidden from screen readers', () => {

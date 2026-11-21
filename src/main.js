@@ -13,8 +13,8 @@ const artSet = document.getElementById('art-set');
 const osdChannel = document.getElementById('osd-channel');
 const osdCode = document.getElementById('osd-code');
 const worldSwitch = document.getElementById('world');
+const probe = document.getElementById('art-probe');
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-const narrow = window.matchMedia('(max-width: 860px)');
 
 const FLIP_MS = 420;  // how long the static covers the art layer
 const SWAP_MS = 150;  // when, under the static, the picture actually changes
@@ -22,17 +22,16 @@ let active = 0;       // section under the reference line (drives the menu highl
 let swapTimer = 0;
 let scene = null;     // set once the 3D scene has loaded
 
-/** The part of the screen the art shows through, in CSS pixels. Mirrors the layout in CSS. */
-function artRect(side) {
-  // The art layer's displayed size (narrower than the window when a scrollbar shows).
-  const art = document.getElementById('scene');
-  const W = art.clientWidth || window.innerWidth;
-  const H = art.clientHeight || window.innerHeight;
-  if (narrow.matches) {
-    const bar = parseFloat(getComputedStyle(html).getPropertyValue('--bar')) || 58;
-    return { x: 0, y: bar, width: W, height: H * 0.42 };
-  }
-  return { x: side === 'left' ? 0 : W / 2, y: 0, width: W / 2, height: H };
+/**
+ * The square the 3D picture is framed in, in CSS pixels. Its centre and size are read
+ * from an invisible element the stylesheet places (art.css: --art-x, --art-y,
+ * --art-view), so the picture and the screen frame behind it cannot drift apart,
+ * whatever units the stylesheet uses. Layout offsets are not changed by the roll
+ * animation, so this is right in the middle of a channel flip too.
+ */
+function artRect() {
+  const side = probe.offsetWidth;
+  return { x: probe.offsetLeft - side / 2, y: probe.offsetTop - side / 2, width: side, height: side };
 }
 
 const cssColour = (name) => parseInt(getComputedStyle(html).getPropertyValue(name).trim().replace('#', ''), 16);
@@ -41,7 +40,7 @@ function showInScene(animate) {
   scene?.show(html.dataset.art, {
     accent: cssColour('--accent'),
     wall: cssColour('--wall'),
-    rect: artRect(html.dataset.side),
+    rect: artRect(),
     animate,
   });
 }
@@ -61,8 +60,9 @@ function applyArt(i, animate = true) {
 /** A burst of TV static with tracking bars, and the picture rolling back into place. */
 function playFlip(label) {
   for (const a of [...flip.getAnimations(), ...artSet.getAnimations()]) a.cancel();
-  if (reduceMotion.matches) return;
   flipChannel.textContent = label;
+  flipChannel.classList.toggle('is-long', label.length > 6); // set smaller, to fit the window
+  if (reduceMotion.matches) return;
   // 'step-end' holds each frame until the next one: hard cuts, not fades.
   const hold = 'step-end';
   flip.animate(
@@ -136,7 +136,7 @@ if (start > 0) {
 function setWorld(on) {
   if (on) html.dataset.world = 'static'; else delete html.dataset.world;
   worldSwitch.setAttribute('aria-pressed', String(on));
-  worldSwitch.querySelector('b').textContent = on ? 'Static' : 'Clean';
+  worldSwitch.querySelector('b').textContent = on ? 'On' : 'Off';
   playFlip(on ? 'NO SIGNAL' : 'SIGNAL OK');
   showInScene(false); // the wall colour changed
   scene?.setWorld(on);

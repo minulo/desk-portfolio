@@ -111,7 +111,7 @@ html[data-section='contact'] .nav a[href='#contact'] b { color: var(--ink); }
 /* The Static switch: a rocker with a signal light. */
 .switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
 .switch span { color: var(--concrete); }
-.switch b { font-weight: 700; }
+.switch b { font-weight: 700; min-width: 3ch; text-align: left; } /* "Off" and "On" take the same room */
 .switch::before { content: ''; width: 8px; height: 8px; background: var(--acid); }
 .switch[aria-pressed='true'] { border-color: var(--magenta); }
 .switch[aria-pressed='true']::before { background: var(--magenta); }
@@ -158,7 +158,7 @@ html:not([data-section='intro']) .tape-track { animation-play-state: paused; }
   }
   .block::before { display: none; }
   #intro .block { padding-bottom: 96px; }
-  .switch span { display: none; }
+  .switch b { display: none; } /* the light and the page itself show the state */
   h1 { font-size: clamp(4rem, 24vw, 8.6rem); }
   h2 { font-size: clamp(3.2rem, 16vw, 6.4rem); }
 }

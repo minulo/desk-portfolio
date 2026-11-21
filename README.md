@@ -83,7 +83,9 @@ not frame times:
 Urban fantasy seen through analog media: a world made of packaging, signage,
 posters and tape labels, played back on a CRT. Keep these and new work will match.
 
-**Colour, in two layers.** All of it is defined in `src/styles/tokens.css`.
+**Colour, in two layers.** The page's palette is defined in `src/styles/tokens.css`.
+The 3D objects carry the same colours in `src/scene/objects.js`, and `static.css`
+adds the deeper blacks of the other-world mode.
 
 | Layer | Tokens | Use |
 |---|---|---|
@@ -99,7 +101,8 @@ an accent.
 television) sets `data-world="static"` on `<html>`. Everything in
 `src/styles/static.css` then applies: deep black, accents that glow, headlines and
 outlines split into two colours, scanlines over the page. This is the only place
-glow is allowed. The 3D scene follows through one shader value.
+glow is allowed. The 3D scene follows inside the same three shaders (one switch value,
+plus new line and shadow colours), with no extra pass.
 
 **Graphic language.** Hazard stripes, tape, sticker labels, stamped serial numbers,
 barcodes, halftone dots, a comic speech panel, slanted block edges, CRT scanlines.
@@ -123,7 +126,7 @@ itself on a small hazard-striped stand, sized to overlap the screen frame.
 **Motion.** Snappy. A section change is a channel flip: a burst of static with
 tracking bars, a picture roll, then the featured object pops in past full size and
 settles. Buttons and stickers overshoot; a clicked object squashes and springs
-back. The only thing that loops is the tape on the opening screen, and
+back. Animations that move the same thing replace one another instead of racing. The only thing that loops is the tape on the opening screen, and
 `prefers-reduced-motion` turns all of it off.
 
 **Words.** Short and plain. Projects are drops, open-source contributions are
@@ -203,8 +206,9 @@ strengthen the warm band at the shadow edge.
   1440x900, 1920x1080 and 2560x1080.
 - Below 860 px wide the art sits above the text.
 - All content works with the keyboard, with JavaScript off, and without WebGL.
-- The Static switch is a real button that reports its state (`aria-pressed`).
-- Keyboard focus is a two-colour ring, so it shows on every background.
+- The Static switch is a real button with one fixed name ("Static mode") that reports
+  its state (`aria-pressed`).
+- Keyboard focus is a two-colour ring in both modes, so it shows on every background.
 - Text meets WCAG AA contrast against its block in both modes; the tests check both.
 - `prefers-reduced-motion` stops every animation, the channel flip included.
 

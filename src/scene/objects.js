@@ -37,7 +37,7 @@ function tv() {
     box(0.54, 0.034, 0.004, 0, 0.15, 0.212, YELLOW, FLAT),         // stripe on the crate
     box(0.66, 0.5, 0.48, 0, 0.45, 0, SHELL),                       // shell
     box(0.62, 0.46, 0.012, 0, 0.45, 0.242, CHAR),                  // front panel
-    box(0.42, 0.34, 0.006, -0.08, 0.47, 0.25, SCREEN, FLAT),       // screen
+    box(0.426, 0.346, 0.006, -0.08, 0.47, 0.25, SCREEN, FLAT),     // screen, a hair larger than the bars
     box(0.42, 0.05, 0.007, -0.08, 0.325, 0.2505, INK, FLAT),       // lower band
     box(0.12, 0.028, 0.008, -0.2, 0.325, 0.251, PAPER, FLAT),      // station ident
     disc(0.03, 0.03, 0.225, 0.585, 0.255, INK),                    // channel knob
@@ -64,9 +64,9 @@ function tape() {
   return [
     box(0.2, 0.028, 0.11, 0, 0, 0, INK),
     box(0.15, 0.018, 0.002, 0.01, 0, 0.056, PAPER, FLAT),          // spine label
-    box(0.028, 0.018, 0.0025, -0.06, 0, 0.0562, MAGENTA, FLAT),
+    box(0.028, 0.017, 0.0025, -0.06, 0, 0.0562, MAGENTA, FLAT),
     box(0.16, 0.001, 0.036, 0, 0.0146, 0.028, PAPER, FLAT),        // face label
-    box(0.16, 0.0012, 0.009, 0, 0.0148, 0.0415, MAGENTA, FLAT),
+    box(0.158, 0.0012, 0.008, 0, 0.0148, 0.041, MAGENTA, FLAT),    // stripes sit just inside their label
     box(0.1, 0.0012, 0.002, -0.02, 0.0148, 0.024, CONCRETE, FLAT), // a written line
     box(0.13, 0.001, 0.04, 0, 0.0146, -0.022, SCREEN, FLAT),       // window
     reel(-0.036),
@@ -87,7 +87,7 @@ function cassette() {
   const pieces = [
     box(0.1, 0.064, 0.012, 0, 0.032, 0, CHAR),
     box(0.088, 0.04, 0.002, 0, 0.04, 0.0065, PAPER, FLAT),         // label
-    box(0.088, 0.008, 0.0022, 0, 0.056, 0.0067, CYAN, FLAT),
+    box(0.086, 0.007, 0.0022, 0, 0.0555, 0.0067, CYAN, FLAT),
     box(0.05, 0.0015, 0.0022, -0.014, 0.0475, 0.0067, CONCRETE, FLAT), // a written line
     box(0.04, 0.016, 0.0024, 0, 0.034, 0.0068, INK, FLAT),         // window
     disc(0.0085, 0.003, -0.027, 0.034, 0.0075, INK, FLAT),         // reels
@@ -99,12 +99,13 @@ function cassette() {
   for (const x of [-0.044, 0.044]) {
     for (const y of [0.0065, 0.0575]) pieces.push(disc(0.0022, 0.003, x, y, 0.0062, CONCRETE, FLAT)); // screws
   }
-  const leaning = pieces.map((g) => g.rotateX(lean));
+  // Leaning tips the front bottom edge 2.2 mm below the ground; lift it back onto it.
+  const leaning = pieces.map((g) => g.rotateX(lean).translate(0, 0.0023, 0));
   // Its case, lying open side up in front.
   const cassetteCase = [
     box(0.108, 0.014, 0.07, 0, 0.007, 0, INK),
     box(0.096, 0.001, 0.058, 0, 0.0146, 0, PAPER, FLAT),           // inlay card
-    box(0.096, 0.0012, 0.012, 0, 0.0148, 0.02, CYAN, FLAT),
+    box(0.094, 0.0012, 0.012, 0, 0.0148, 0.02, CYAN, FLAT),
     box(0.06, 0.0012, 0.002, -0.014, 0.0148, -0.004, CONCRETE, FLAT),
     box(0.06, 0.0012, 0.002, -0.014, 0.0148, -0.014, CONCRETE, FLAT),
   ].map((g) => g.rotateY(0.38).translate(0.03, 0, 0.07));
@@ -118,7 +119,7 @@ function floppy(body) {
     box(0.05, 0.001, 0.03, 0.006, 0.003, -0.032, CONCRETE, FLAT),  // metal shutter
     box(0.014, 0.0012, 0.022, 0.012, 0.0031, -0.032, INK, FLAT),   // the opening in it
     box(0.07, 0.001, 0.044, 0, 0.003, 0.022, PAPER, FLAT),         // label
-    box(0.07, 0.0012, 0.009, 0, 0.0031, 0.0045, ACID, FLAT),
+    box(0.068, 0.0012, 0.008, 0, 0.0031, 0.005, ACID, FLAT),
     box(0.05, 0.0012, 0.002, -0.006, 0.0031, 0.02, CONCRETE, FLAT), // written lines
     box(0.05, 0.0012, 0.002, -0.006, 0.0031, 0.03, CONCRETE, FLAT),
   ];
@@ -129,7 +130,8 @@ function floppies() {
   const lying = (y, turn, dx, dz, body) => floppy(body).map((g) => g.rotateY(turn).translate(dx, y, dz));
   // Stood on its edge with the label at the top, leaning back.
   const prop = (g) => g.rotateY(0.3).translate(-0.03, 0, -0.03);
-  const standing = floppy(CHAR).map((g) => prop(g.rotateX(Math.PI / 2).rotateZ(Math.PI).translate(0, 0.047, 0).rotateX(-0.3)));
+  // The lean tips its back bottom edge just under the ground, so it is lifted by that much.
+  const standing = floppy(CHAR).map((g) => prop(g.rotateX(Math.PI / 2).rotateZ(Math.PI).translate(0, 0.047, 0).rotateX(-0.3).translate(0, 0.0008, 0)));
   return combine([
     ...lying(0.0025, 0.12, 0.03, 0.04, INK),
     ...lying(0.0085, -0.3, 0.038, 0.045, CHAR),
@@ -185,13 +187,15 @@ function can() {
  * @param {number} [o.depth]
  * @param {number} [o.thickness]  how far down from `top` it reaches (default: to y = 0)
  * @param {number} [o.stripe]     width of one block of the hazard stripe
+ * @param {boolean} [o.line]      paint a line along the front of the top (sized for the big slab)
+ * @param {boolean} [o.bare]      just the block, with no stripe or line: the shape a
+ *                                die-cut edge follows, so it has no notch at every stripe
  */
-export function slab(top, { width = 1.86, depth = 1.04, thickness = top, stripe = 0.116 } = {}) {
+export function slab(top, { width = 1.86, depth = 1.04, thickness = top, stripe = 0.116, line = true, bare = false } = {}) {
   const middle = top - thickness / 2;
-  const parts = [
-    box(width, thickness, depth, 0, middle, 0, CONCRETE),
-    box(width - 0.16, 0.001, 0.016, 0, top + 0.0006, depth / 2 - 0.08, PAPER, FLAT), // painted line
-  ];
+  const parts = [box(width, thickness, depth, 0, middle, 0, CONCRETE)];
+  if (bare) return combine(parts);
+  if (line) parts.push(box(width - 0.16, 0.001, 0.016, 0, top + 0.0006, depth / 2 - 0.08, PAPER, FLAT));
   const blocks = Math.max(4, Math.round(width / stripe / 2) * 2); // an even number
   for (let i = 0; i < blocks; i++) {
     parts.push(box(width / blocks, thickness * 0.72, 0.004, -width / 2 + (i + 0.5) * (width / blocks), middle, depth / 2 + 0.002, i % 2 ? INK : YELLOW, FLAT));

@@ -26,7 +26,8 @@
  *     feature   id of the object
  *     from      [turn, tilt] in degrees, the direction it is seen from: turn 0 is
  *               straight in front, positive turns to its right; tilt raises the camera
- *     fill      0..1 how much of the view's height the object and its stand take up
+ *     fill      0..1 how much of the view's height the object takes up (measured on
+ *               the ball that just encloses it; its stand may reach further)
  *   The view is drawn to fill a square about as tall as the art window, so a featured
  *   object overlaps the 4:3 screen frame on purpose.
  */

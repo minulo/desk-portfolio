@@ -71,6 +71,7 @@
 /* A comic speech panel: hard border, a tail, halftone in one corner. */
 .speech {
   position: relative;
+  isolation: isolate; /* lets the halftone sit above the panel's background but under its words */
   padding: 16px 18px;
   background: var(--card);
   border: var(--edge) solid var(--fg);
@@ -100,11 +101,13 @@
   -webkit-mask-image: linear-gradient(90deg, transparent, #111);
   mask-image: linear-gradient(90deg, transparent, #111);
   pointer-events: none;
+  z-index: -1;
 }
 .speech + p { margin-top: 30px; }
 
 .notice { border: var(--edge) solid var(--fg); background: var(--card); }
-.notice-head {
+.notice .notice-head {
+  max-width: none; /* a bar across the whole box, not a paragraph of text */
   padding: 6px 12px 5px;
   color: var(--ink);
   /* Yellow is the background colour proper; the hazard stripe is only the last 96px. */

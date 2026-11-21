@@ -1,7 +1,8 @@
 /* The art layer sits fixed behind the page. Back to front: a concrete wall with halftone
-   dots, a giant outlined word, the screen frame with scanlines, the 3D set (drawn over
-   the frame so objects overlap its border like stickers), the on-screen display, and
-   the static that covers everything during a channel flip. Nothing here is content. */
+   dots, a giant outlined word, the screen frame with scanlines, the on-screen display,
+   the 3D set (drawn over the frame and the display, so objects overlap them like
+   stickers), and the static that covers everything during a channel flip. Nothing here
+   is content. */
 .art {
   position: fixed;
   inset: 0;
@@ -12,8 +13,9 @@
   contain: strict;
 }
 
-/* Where the art sits: the half of the screen the text is not on. */
-html { --art-x: 75%; --art-y: 50%; --screen-w: min(40vw, 72vh); }
+/* Where the art sits: the half of the screen the text is not on.
+   --art-view is the side of the square the 3D picture is framed in. */
+html { --art-x: 75%; --art-y: 50%; --screen-w: min(40vw, 72vh); --art-view: min(100vh, 53vw); }
 html[data-side='left'] { --art-x: 25%; }
 
 .art-wall, .art-dots, .art-word, .screen, .osd { pointer-events: none; }
@@ -95,6 +97,9 @@ html[data-side='left'] { --art-x: 25%; }
   border: 2px solid var(--ink);
 }
 
+/* Not drawn. The script reads the 3D picture's centre and size from where this lands. */
+.art-probe { position: absolute; left: var(--art-x); top: var(--art-y); width: var(--art-view); height: 0; visibility: hidden; pointer-events: none; }
+
 #scene {
   position: absolute;
   inset: 0;
@@ -126,7 +131,8 @@ html.scene-ready #scene { opacity: 1; transform: none; }
 .osd-play { left: 58px; top: 18px; }
 .osd-channel { right: 20px; top: 16px; font-size: 1.2rem; text-align: right; }
 .osd-channel b { display: block; font-size: 0.7rem; letter-spacing: 0.2em; }
-.osd-code { left: 20px; bottom: 16px; font-size: 0.7rem; }
+/* Top left with the rest: the bottom of the screen is where the objects stand. */
+.osd-code { left: 58px; top: 42px; font-size: 0.7rem; }
 
 /* Channel flip: TV static with tracking bars, shown for a few frames. */
 .art-flip {
@@ -148,6 +154,7 @@ html.scene-ready #scene { opacity: 1; transform: none; }
   font: italic 800 clamp(5rem, 13vw, 14rem) / 0.9 var(--display);
   transform: skewX(-8deg) translateX(var(--art-shift, 0));
 }
+#flip-channel.is-long { font-size: clamp(3rem, 7vw, 8rem); }
 html { --art-shift: 25vw; }
 html[data-side='left'] { --art-shift: -25vw; }
 
@@ -181,11 +188,17 @@ html:not([data-art='intro']) .pin { pointer-events: none; }
 .pin:hover, .pin.is-hot { background: var(--yellow); }
 
 @media (max-width: 860px) {
-  html, html[data-side='left'] { --art-x: 50%; --art-y: calc(var(--bar) + 21svh); --screen-w: min(84vw, 44svh); --art-shift: 0; }
+  html, html[data-side='left'] { --art-x: 50%; --art-y: calc(var(--bar) + 21svh); --screen-w: min(84vw, 44svh); --art-view: min(42svh, 106vw); --art-shift: 0; }
   .art-word { top: var(--art-y); font-size: clamp(9rem, 52vw, 20rem); }
   .art-flip { align-items: start; padding-top: calc(var(--bar) + 12svh); }
   .osd { font-size: 0.66rem; }
   .osd-channel { font-size: 0.9rem; }
   .osd-play { left: 50px; top: 12px; }
+  .osd-code { left: 50px; top: 30px; font-size: 0.6rem; }
+  #flip-channel.is-long { font-size: clamp(3rem, 15vw, 6rem); }
   .pin { display: none; }
+}
+/* A phone held sideways: the screen is too small for more than the channel number. */
+@media (max-width: 860px) and (max-height: 480px) {
+  .osd-play, .osd-code { display: none; }
 }

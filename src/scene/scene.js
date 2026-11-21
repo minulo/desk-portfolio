@@ -101,12 +101,14 @@ export async function createScene({ canvas, pinLayer, objects, views, stageTop, 
       const size = soloBox.getSize(new Vector3());
       const middle = soloBox.getCenter(new Vector3());
       standHalf = [size.x / 2 + STAND_MARGIN, size.z / 2 + STAND_MARGIN];
-      const standGeometry = slab(stageTop, { width: standHalf[0] * 2, depth: standHalf[1] * 2, thickness: STAND_THICKNESS, stripe: 0.055 });
+      const standSize = { width: standHalf[0] * 2, depth: standHalf[1] * 2, thickness: STAND_THICKNESS };
+      const standGeometry = slab(stageTop, { ...standSize, stripe: 0.055, line: false });
       stand = new Group();
       stand.add(
         new Mesh(standGeometry, materials.toon({ sss: 0.1, rim: 0.12 })),
         new Mesh(standGeometry, materials.outline({ color: lineColour })),
-        new Mesh(standGeometry, sticker()),
+        // The die-cut edge follows the plain block; around every stripe it would leave a tick.
+        new Mesh(slab(stageTop, { ...standSize, bare: true }), sticker()),
       );
       stand.children.forEach((m) => { m.frustumCulled = false; });
       stand.position.set(middle.x, 0, middle.z);
@@ -213,9 +215,10 @@ export async function createScene({ canvas, pinLayer, objects, views, stageTop, 
     if (world) {
       // Static: lines glow in the accent and the die-cut edge splits off to one side
       // in a second colour, like a misregistered print.
-      const magentaAccent = accent[0] > 0.9 && accent[1] < 0.4 && accent[2] > 0.4;
+      // The second colour must not be the accent's neighbour: red and pink lines get cyan.
+      const reddish = accent[0] > 0.9 && accent[1] < 0.4;
       lineColour.set(...accent);
-      stickerColour.set(...hexToRgb(magentaAccent ? 0x19e0ff : 0xff2e88));
+      stickerColour.set(...hexToRgb(reddish ? 0x19e0ff : 0xff2e88));
       stickerShift.value = 5;
       floorColour.set(0.03, 0.03, 0.04);
       slabShadow.set(0.02, 0.02, 0.03);
@@ -257,7 +260,6 @@ export async function createScene({ canvas, pinLayer, objects, views, stageTop, 
   // Overshoots 1 a little before landing on it: the "pop" of something slapped into place.
   const overshoot = (p) => 1 + 2.70158 * (p - 1) ** 3 + 1.70158 * (p - 1) ** 2;
 
-  let cancelSettle = null;
   /**
    * Frame the scene for a page section.
    * @param {string} sectionId
@@ -284,20 +286,20 @@ export async function createScene({ canvas, pinLayer, objects, views, stageTop, 
     setHover(null);
     applyLook();
     layout();
-    cancelSettle?.();
-    for (const it of items) it.lift.scale.setScalar(1);
+    // Every object back to rest: no hover lift, bounce or pop-in carries over.
+    for (const it of items) {
+      tweens.cancel(it.lift.position);
+      tweens.cancel(it.lift.scale);
+      it.lift.position.y = 0;
+      it.lift.scale.setScalar(1);
+    }
     if ((look.animate ?? true) && !reducedMotion()) {
       settle.back = 1;
-      cancelSettle = tween({
-        duration: 380,
-        onFrame: (p) => {
-          settle.back = 1 - p;
-          // A featured object pops in: a little small, past full size, then settled.
-          item?.lift.scale.setScalar(0.84 + 0.16 * overshoot(p));
-          placeCamera();
-        },
-      });
+      tween({ key: settle, duration: 380, onFrame: (p) => { settle.back = 1 - p; placeCamera(); } });
+      // A featured object pops in: a little small, past full size, then settled.
+      if (item) tween({ key: item.lift.scale, duration: 380, onFrame: (p) => { item.lift.scale.setScalar(0.84 + 0.16 * overshoot(p)); invalidate(); } });
     } else {
+      tweens.cancel(settle);
       settle.back = 0;
     }
     placeCamera();
@@ -325,8 +327,8 @@ export async function createScene({ canvas, pinLayer, objects, views, stageTop, 
   /** Squash and stretch: the object is pressed down and springs back. */
   function boing(item) {
     if (reducedMotion()) return;
-    item.cancelBoing?.();
-    item.cancelBoing = tween({
+    tween({
+      key: item.lift.scale,
       duration: 420,
       onFrame: (p) => {
         const wobble = Math.sin(p * Math.PI * 3) * (1 - p) * 0.2;
@@ -337,10 +339,10 @@ export async function createScene({ canvas, pinLayer, objects, views, stageTop, 
   }
 
   function activate(item) {
-    boing(item);
     if (item.entry.action) onAction(item.entry.action);
     // An object featured by itself is already on its own section: nowhere to go.
     else if (item !== featured) onPick(item.entry.section);
+    boing(item); // last: an action may redraw the scene, which puts every object at rest first
   }
 
   function setHover(item) {
@@ -354,7 +356,8 @@ export async function createScene({ canvas, pinLayer, objects, views, stageTop, 
       const from = it.lift.position.y;
       const to = on ? 0.02 : 0;
       if (reducedMotion()) it.lift.position.y = to;
-      else tween({ duration: 150, onFrame: (p) => { it.lift.position.y = from + (to - from) * p; invalidate(); } });
+      // Keyed by what it moves: a newer lift or drop replaces this one instead of racing it.
+      else tween({ key: it.lift.position, duration: 150, onFrame: (p) => { it.lift.position.y = from + (to - from) * p; invalidate(); } });
     }
     hovered = item;
     canvas.style.cursor = item ? 'pointer' : '';
@@ -386,10 +389,11 @@ export async function createScene({ canvas, pinLayer, objects, views, stageTop, 
   for (const it of clickable) {
     const label = it.entry.action ? { num: '◉', text: it.entry.label ?? it.entry.action } : labels[it.entry.section];
     if (!label) continue;
-    const pin = document.createElement('button');
-    pin.type = 'button';
+    // A pointer shortcut in a layer that is hidden from assistive technology, so it must
+    // never take focus: a plain element, not a button. Keyboard users have the menu, the
+    // index links and the switch.
+    const pin = document.createElement('div');
     pin.className = 'pin';
-    pin.tabIndex = -1; // a pointer shortcut; keyboard users have the menu, the index links and the switch
     pin.append(Object.assign(document.createElement('b'), { textContent: label.num }), label.text);
     pin.addEventListener('click', () => activate(it));
     pin.addEventListener('pointerenter', () => setHover(it));

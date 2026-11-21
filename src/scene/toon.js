@@ -13,8 +13,9 @@ import { ShaderMaterial, Vector2, Vector3, BackSide, DoubleSide } from 'three';
  *  shadow   a flat shadow: the mesh flattened onto a plane along the light direction
  *
  * In Static (other-world) mode the same shaders go dark, light the edges in the accent,
- * add scanlines and shift a few horizontal slices sideways, as a tape that is tracking
- * badly would. The slices only move when the section or the mode changes.
+ * add scanlines and push the corners that fall in a few horizontal bands sideways, so
+ * edges tear and large faces lean, as a tape that is tracking badly would. The bands
+ * only move when the section or the mode changes.
  *
  * Colours are written as they should appear on screen; nothing here converts colour spaces.
  */
@@ -32,6 +33,7 @@ export function createShared() {
 }
 
 // Shared by all three vertex shaders so an object, its outline and its shadow tear together.
+// It moves vertices, not pixels: no extra pass, and nothing to redraw while idle.
 const GLITCH = /* glsl */ `
 uniform float uWorld;
 uniform float uSeed;
@@ -71,28 +73,37 @@ varying vec4 vColor;
 varying vec3 vNormal;
 varying vec3 vWorld;
 
+// Brighten a hovered surface by what headroom its colour has, so paper never turns white.
+vec3 hovered(vec3 colour, float amount) {
+  return colour + uHover * amount * (1.0 - min(min(colour.r, colour.g), colour.b));
+}
+
 void main() {
   vec3 base = vColor.rgb;
   float scan = step(0.5, fract(gl_FragCoord.y / (4.0 * uPixel)));
-
-  // Flat parts (screens, labels, printed details) are drawn exactly as painted.
-  if (vColor.a > 0.5) {
-    // Static mode: colours slip a channel and burn brighter.
-    vec3 slipped = mix(base, base.brg, 0.55) * 1.12;
-    vec3 flatColour = mix(base, slipped * (0.8 + 0.2 * scan), uWorld);
-    gl_FragColor = vec4(flatColour + uHover * 0.1, 1.0);
-    return;
-  }
 
   vec3 n = normalize(vNormal);
   vec3 v = normalize(cameraPosition - vWorld);
   float ndl = dot(n, uLight);
   float ndv = max(dot(n, v), 0.0);
+  float spec = dot(n, normalize(uLight + v));
+  // How fast these change from one pixel to the next. Read up here, before the branch
+  // below: a shader may only ask for that in code every pixel runs.
+  float aa = fwidth(ndl) + 1e-4;
+  float specAa = fwidth(spec) + 1e-4;
+
+  // Flat parts (screens, labels, printed details) are drawn exactly as painted.
+  if (vColor.a > 0.5) {
+    // Static mode: colours slip a channel.
+    vec3 slipped = mix(base, base.brg, 0.55);
+    vec3 flatColour = mix(base, slipped * (0.8 + 0.2 * scan), uWorld);
+    gl_FragColor = vec4(hovered(flatColour, 0.11), 1.0);
+    return;
+  }
 
   // Three tones with hard edges, each softened by one pixel so it is not jagged.
   const float EDGE = 0.1;
   const float CORE = -0.5;
-  float aa = fwidth(ndl) + 1e-4;
   float lit = smoothstep(EDGE - aa, EDGE + aa, ndl);
   float deep = 1.0 - smoothstep(CORE - aa, CORE + aa, ndl);
 
@@ -123,10 +134,8 @@ void main() {
   colour = mix(colour, colour * vec3(1.22, 0.74, 0.66) + vec3(0.09, 0.0, 0.02), band * uSss);
 
   // One hard highlight.
-  vec3 h = normalize(uLight + v);
-  float spec = dot(n, h);
   float edge = 1.0 - 0.012 * uGloss - 0.002;
-  colour = mix(colour, vec3(0.97, 0.96, 0.93), smoothstep(edge - fwidth(spec), edge + fwidth(spec), spec) * step(0.01, uGloss) * lit);
+  colour = mix(colour, vec3(0.97, 0.96, 0.93), smoothstep(edge - specAa, edge + specAa, spec) * step(0.01, uGloss) * lit);
 
   // Static mode: the body drops to near-black, its rim lights up in the accent, and
   // scanlines run across it.
@@ -137,7 +146,7 @@ void main() {
   otherworld *= 0.76 + 0.24 * scan;
   colour = mix(colour, otherworld, uWorld);
 
-  gl_FragColor = vec4(colour + uHover * 0.07, 1.0);
+  gl_FragColor = vec4(hovered(colour, 0.08), 1.0);
 }
 `;
 

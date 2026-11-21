@@ -36,22 +36,35 @@ export function runTween({
  * Runs tweens and knows how many are still going. A tween stops counting when it
  * finishes or when it is cancelled, whichever comes first, and never twice.
  *
- * @returns {{ run(options: object): () => void, readonly active: number }}
+ * Give tweens that drive the same value the same `key` (any value: the object being
+ * moved will do). Starting one cancels the one still running under that key, so two
+ * can never fight and the newest always has the last word. Without that, a tween
+ * started a moment earlier can finish a frame later and overwrite the result.
+ *
+ * @returns {{ run(options: object): () => void, cancel(key: unknown): void, readonly active: number }}
  */
 export function createTweenTracker(clock = {}) {
   let active = 0;
+  const running = new Map(); // key -> cancel
   return {
     get active() { return active; },
+    /** Stop whatever is running under `key`. Does nothing if nothing is. */
+    cancel(key) { running.get(key)?.(); },
     run(options) {
+      const { key } = options;
+      if (key !== undefined) running.get(key)?.();
       let counted = true;
       const release = () => {
         if (!counted) return;
         counted = false;
         active--;
+        if (key !== undefined && running.get(key) === stop) running.delete(key);
       };
       active++;
       const cancel = runTween({ ...clock, ...options, onDone: () => { release(); options.onDone?.(); } });
-      return () => { cancel(); release(); };
+      const stop = () => { cancel(); release(); };
+      if (key !== undefined) running.set(key, stop);
+      return stop;
     },
   };
 }
