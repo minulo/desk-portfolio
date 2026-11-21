@@ -13,11 +13,17 @@ const artSet = document.getElementById('art-set');
 const osdChannel = document.getElementById('osd-channel');
 const osdCode = document.getElementById('osd-code');
 const worldSwitch = document.getElementById('world');
+const signal = document.getElementById('signal');
+const worldStatus = document.getElementById('world-status');
+const sweep = document.getElementById('sweep');
 const probe = document.getElementById('art-probe');
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
 const FLIP_MS = 420;  // how long the static covers the art layer
 const SWAP_MS = 150;  // when, under the static, the picture actually changes
+const TUNE_MS = 760;  // the longer flip when the signal itself is lost
+const NOTE_MS = 7000; // how long the note in Static mode explains itself
+const isStatic = () => html.dataset.world === 'static';
 let active = 0;       // section under the reference line (drives the menu highlight)
 let swapTimer = 0;
 let scene = null;     // set once the 3D scene has loaded
@@ -45,6 +51,14 @@ function showInScene(animate) {
   });
 }
 
+/** What the on-screen display says for section `i`. With no signal there is no time code. */
+function updateDisplay(i) {
+  const s = sections[i];
+  const name = (isStatic() && s.dataset.nameStatic) || s.dataset.name;
+  osdChannel.replaceChildren(`CH ${s.dataset.channel} `, Object.assign(document.createElement('b'), { textContent: name }));
+  osdCode.textContent = `MN-${s.dataset.channel} · ${isStatic() ? '-:--:--' : `0:0${i}:00`}`;
+}
+
 /** Switch the art layer to section `i`: accent, side, giant word, on-screen display, 3D framing. */
 function applyArt(i, animate = true) {
   const s = sections[i];
@@ -52,13 +66,12 @@ function applyArt(i, animate = true) {
   html.dataset.accent = s.dataset.accent;
   html.dataset.side = s.dataset.side;
   word.textContent = s.dataset.word;
-  osdChannel.replaceChildren(`CH ${s.dataset.channel} `, Object.assign(document.createElement('b'), { textContent: s.dataset.name }));
-  osdCode.textContent = `MN-${s.dataset.channel} · 0:0${i}:00`;
+  updateDisplay(i);
   showInScene(animate);
 }
 
 /** A burst of TV static with tracking bars, and the picture rolling back into place. */
-function playFlip(label) {
+function playFlip(label, duration = FLIP_MS) {
   for (const a of [...flip.getAnimations(), ...artSet.getAnimations()]) a.cancel();
   flipChannel.textContent = label;
   flipChannel.classList.toggle('is-long', label.length > 6); // set smaller, to fit the window
@@ -75,7 +88,7 @@ function playFlip(label) {
       { opacity: 0.3, backgroundPosition: '0 -40px, 40px 20px, 0 0', offset: 0.84, easing: hold },
       { opacity: 0, backgroundPosition: '0 0, 0 0, 0 0' },
     ],
-    { duration: FLIP_MS },
+    { duration },
   );
   artSet.animate(
     [
@@ -133,16 +146,49 @@ if (start > 0) {
 }
 
 // ---------- Static: the other-world mode ----------
+// A visitor must be able to tell this is a mode and not a fault. So the change is staged
+// (a tracking bar crosses the whole page, the screen shows NO SIGNAL), the picture then
+// holds still, the display and labels reword themselves, and a note names the mode and
+// keeps the way back in reach.
+let noteTimer = 0;
+
+/** One tracking bar down the whole page: the moment the broadcast changes. */
+function playSweep() {
+  for (const a of sweep.getAnimations()) a.cancel();
+  if (reduceMotion.matches) return;
+  sweep.animate(
+    [{ opacity: 1, transform: 'translateY(-100%)' }, { opacity: 1, transform: 'translateY(100vh)' }],
+    { duration: 520, easing: 'steps(10, end)' },
+  );
+}
+
 function setWorld(on) {
   if (on) html.dataset.world = 'static'; else delete html.dataset.world;
   worldSwitch.setAttribute('aria-pressed', String(on));
   worldSwitch.querySelector('b').textContent = on ? 'On' : 'Off';
-  playFlip(on ? 'NO SIGNAL' : 'SIGNAL OK');
+
+  // The note: shown while the mode is on, with its one line of explanation at first.
+  signal.hidden = !on;
+  signal.classList.toggle('is-new', on);
+  clearTimeout(noteTimer);
+  if (on) noteTimer = setTimeout(() => signal.classList.remove('is-new'), NOTE_MS);
+  // Screen readers get it in plain words; they cannot see the rest.
+  worldStatus.textContent = on
+    ? 'Static mode is on. The page now shows its dead-channel look, on purpose. Retune, or the Static mode switch, turns it off.'
+    : 'Static mode is off.';
+
+  updateDisplay(Math.max(0, sections.findIndex((s) => s.id === html.dataset.art)));
+  playFlip(on ? 'NO SIGNAL' : 'SIGNAL OK', on ? TUNE_MS : FLIP_MS);
+  playSweep();
   showInScene(false); // the wall colour changed
   scene?.setWorld(on);
 }
-const toggleWorld = () => setWorld(html.dataset.world !== 'static');
+const toggleWorld = () => setWorld(!isStatic());
 worldSwitch.addEventListener('click', toggleWorld);
+document.getElementById('retune').addEventListener('click', () => {
+  setWorld(false);
+  worldSwitch.focus(); // the button that was pressed is gone; do not leave the keyboard nowhere
+});
 
 // ---------- the 3D scene: loaded after the page is up, and optional ----------
 function webglWorks() {
@@ -180,7 +226,7 @@ async function startScene() {
       reducedMotion: () => reduceMotion.matches,
     });
     showInScene(false);
-    scene.setWorld(html.dataset.world === 'static');
+    scene.setWorld(isStatic());
     html.classList.add('scene-ready');
     performance.mark('scene-ready');
   } catch (err) {

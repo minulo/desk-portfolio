@@ -126,7 +126,7 @@ html.scene-ready #scene { opacity: 1; transform: none; }
   text-transform: uppercase;
   text-shadow: 2px 2px 0 var(--ink), -1px -1px 0 var(--ink), 1px -1px 0 var(--ink), -1px 1px 0 var(--ink);
 }
-.osd span { position: absolute; }
+.osd > span { position: absolute; }
 .osd i { font-style: normal; opacity: 0.8; margin-left: 8px; }
 .osd-play { left: 58px; top: 18px; }
 .osd-channel { right: 20px; top: 16px; font-size: 1.2rem; text-align: right; }

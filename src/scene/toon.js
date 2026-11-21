@@ -12,10 +12,11 @@ import { ShaderMaterial, Vector2, Vector3, BackSide, DoubleSide } from 'three';
  *           object read as a die-cut sticker
  *  shadow   a flat shadow: the mesh flattened onto a plane along the light direction
  *
- * In Static (other-world) mode the same shaders go dark, light the edges in the accent,
- * add scanlines and push the corners that fall in a few horizontal bands sideways, so
- * edges tear and large faces lean, as a tape that is tracking badly would. The bands
- * only move when the section or the mode changes.
+ * In Static (other-world) mode the same shaders go dark, light the edges in the accent
+ * and add scanlines. That look holds still. Tearing is separate and brief: while the
+ * picture tunes in (the mode was just switched on, or the channel changed) the corners
+ * that fall in a few horizontal bands are pushed sideways, less at each step, until the
+ * picture locks. A picture that stayed torn would read as a fault, not as a style.
  *
  * Colours are written as they should appear on screen; nothing here converts colour spaces.
  */
@@ -28,19 +29,20 @@ export function createShared() {
     uResolution: { value: new Vector2(1, 1) },                     // canvas size in device pixels
     uPixel: { value: 1 },                                          // device pixels per CSS pixel
     uWorld: { value: 0 },                                          // 1 in Static mode
-    uSeed: { value: 0 },                                           // where the glitched slices fall
+    uTear: { value: 0 },                                           // 0 at rest, up to 1 while tuning in
+    uSeed: { value: 0 },                                           // where the torn bands fall
   };
 }
 
 // Shared by all three vertex shaders so an object, its outline and its shadow tear together.
 // It moves vertices, not pixels: no extra pass, and nothing to redraw while idle.
 const GLITCH = /* glsl */ `
-uniform float uWorld;
+uniform float uTear;
 uniform float uSeed;
 vec4 glitch(vec4 clip) {
   float row = clip.y / clip.w * 2.6 + uSeed;
   float torn = step(0.86, fract(row)) - step(0.955, fract(row * 1.7 + 0.3));
-  clip.x += torn * 0.022 * uWorld * clip.w;
+  clip.x += torn * 0.045 * uTear * clip.w;
   return clip;
 }
 `;
@@ -203,7 +205,7 @@ void main() {
 `;
 
 export function createMaterials(shared) {
-  const world = { uWorld: shared.uWorld, uSeed: shared.uSeed };
+  const world = { uWorld: shared.uWorld, uTear: shared.uTear, uSeed: shared.uSeed };
   return {
     /** Each object gets its own copy so it can be highlighted on its own; all copies share one shader program. */
     toon({ gloss = 0, sss = 0.22, rim = 0.4 } = {}) {

@@ -155,15 +155,35 @@ function phone() {
   return combine(parts);
 }
 
-/** A traffic cone. */
-function cone() {
-  return combine([
-    box(0.15, 0.012, 0.15, 0, 0.006, 0, INK),
-    paint(new CylinderGeometry(0.014, 0.058, 0.2, 20).translate(0, 0.112, 0), CRIMSON),
-    // Stripes sit a hair outside the cone, which narrows from 0.058 (y 0.012) to 0.014 (y 0.212).
-    paint(new CylinderGeometry(0.0378, 0.0466, 0.04, 20, 1, true).translate(0, 0.088, 0), PAPER),
-    paint(new CylinderGeometry(0.0268, 0.0321, 0.024, 20, 1, true).translate(0, 0.146, 0), PAPER),
-  ]);
+/** A boombox: two speakers, a tape deck, a tuner strip, buttons, a handle and an aerial. */
+function boombox() {
+  const front = 0.0425; // the front face of the body
+  const speaker = (x) => [
+    disc(0.05, 0.006, x, 0.066, front, CRIMSON, FLAT),             // ring: the loud part
+    disc(0.043, 0.008, x, 0.066, front, INK),                      // cone
+    disc(0.016, 0.012, x, 0.066, front, CONCRETE),                 // dust cap
+  ];
+  const parts = [
+    box(0.3, 0.15, 0.085, 0, 0.083, 0, CHAR),                      // body
+    box(0.04, 0.008, 0.06, -0.11, 0.004, 0, INK),                  // feet
+    box(0.04, 0.008, 0.06, 0.11, 0.004, 0, INK),
+    ...speaker(-0.098),
+    ...speaker(0.098),
+    box(0.076, 0.05, 0.004, 0, 0.058, front, SCREEN, FLAT),        // tape door
+    disc(0.009, 0.006, -0.017, 0.056, front, PAPER, FLAT),         // reels
+    disc(0.009, 0.006, 0.017, 0.056, front, PAPER, FLAT),
+    box(0.06, 0.007, 0.005, 0, 0.0755, front, PAPER, FLAT),        // tape label
+    box(0.26, 0.02, 0.004, 0, 0.134, front, PAPER, FLAT),          // tuner strip
+    box(0.004, 0.02, 0.006, 0.052, 0.134, front, CRIMSON, FLAT),   // its needle
+    box(0.012, 0.03, 0.012, -0.1, 0.173, -0.012, INK),             // handle
+    box(0.012, 0.03, 0.012, 0.1, 0.173, -0.012, INK),
+    box(0.224, 0.012, 0.016, 0, 0.193, -0.012, INK),
+    // Aerial, hinged at the back corner and leaning out.
+    paint(new CylinderGeometry(0.003, 0.003, 0.17, 8).translate(0, 0.085, 0).rotateZ(-0.35).translate(0.132, 0.158, -0.03), INK),
+  ];
+  for (let i = 0; i < 9; i++) parts.push(box(0.002, 0.008, 0.005, -0.11 + i * 0.0275, 0.138, front, INK, FLAT)); // tuner marks
+  for (let i = 0; i < 5; i++) parts.push(box(0.02, 0.008, 0.016, -0.05 + i * 0.025, 0.162, 0.02, i === 4 ? CRIMSON : CONCRETE)); // keys; the last is record
+  return combine(parts);
 }
 
 /** A spray can. Decoration. */
@@ -203,4 +223,4 @@ export function slab(top, { width = 1.86, depth = 1.04, thickness = top, stripe 
   return combine(parts);
 }
 
-export const placeholders = { tv, tapes, cassette, floppies, phone, cone, can };
+export const placeholders = { tv, tapes, cassette, floppies, phone, boombox, can };

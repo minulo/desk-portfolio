@@ -20,11 +20,11 @@
       <p class="art-word" id="art-word">MN</p>
       <div class="art-set" id="art-set">
         <div class="screen">
-          <span class="screen-tab">MN-TV</span>
+          <span class="screen-tab">MN-TV<span class="when-static"> &middot; OFF AIR</span></span>
           <span class="screen-stripe"></span>
         </div>
         <div class="osd">
-          <span class="osd-play">&#9654; PLAY <i>SP</i></span>
+          <span class="osd-play"><span class="when-clean">&#9654; PLAY <i>SP</i></span><span class="when-static">&#9632; NO SIGNAL</span></span>
           <span class="osd-channel" id="osd-channel">CH 00 <b>ON AIR</b></span>
           <span class="osd-code" id="osd-code">MN-00 &middot; 0:00:00</span>
         </div>
@@ -47,11 +47,21 @@
       <button type="button" id="world" class="switch" aria-pressed="false" aria-label="Static mode" title="Tune the page to the dead channel, or back"><span>Static</span><b>Off</b></button>
     </header>
 
+    <!-- Static mode only. A strip of tape stuck over the picture: it names the mode, says
+         one line about it for a few seconds, and keeps the way back within reach. -->
+    <div class="signal" id="signal" hidden>
+      <p class="signal-line"><b>No signal</b> <span>Dead channel</span></p>
+      <p class="signal-note">Same station, other side of the dial.</p>
+      <button type="button" class="signal-retune" id="retune">Retune <span aria-hidden="true">&#8634;</span></button>
+    </div>
+    <p class="sr-only" id="world-status" role="status"></p>
+    <div class="sweep" id="sweep" aria-hidden="true"></div>
+
     <main>
       <!-- ============ INTRO ============ -->
-      <section id="intro" data-accent="yellow" data-channel="00" data-name="On air" data-side="right" data-word="MN">
+      <section id="intro" data-accent="yellow" data-channel="00" data-name="On air" data-name-static="Off air" data-side="right" data-word="MN">
         <div class="block block--black">
-          <p class="label"><span class="chip">On air</span>Portfolio · Rochester, NY · 2026</p>
+          <p class="label"><span class="chip"><span class="when-clean">On air</span><span class="when-static">Off air</span></span>Portfolio · Rochester, NY · 2026</p>
           <h1><span>Minh</span> <span class="hl">Nguyen</span></h1>
           <p class="role">Associate Software Engineer <b>@ Canonical</b></p>
           <p class="lede">Crafting software end to end — platform tooling on one side, fast and accessible web on the other, with a soft spot for thoughtful detail.</p>
@@ -66,7 +76,7 @@
             <li><a href="#kit"><b>04</b>Kit</a></li>
             <li><a href="#contact"><b>05</b>Hotline</a></li>
           </ol>
-          <p class="stamp"><span class="barcode" aria-hidden="true"></span><span class="serial">MN-00-ONAIR // 5 CHANNELS // NO SIGNAL LOST</span></p>
+          <p class="stamp"><span class="barcode" aria-hidden="true"></span><span class="serial">MN-00-IDENT // 5 CHANNELS // <span class="when-clean">NO SIGNAL LOST</span><span class="when-static">SIGNAL LOST</span></span></p>
         </div>
         <div class="window"></div>
         <div class="tape-wrap" aria-hidden="true"><div class="tape">

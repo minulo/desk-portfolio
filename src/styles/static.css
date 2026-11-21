@@ -57,7 +57,8 @@ html[data-world='static'] .screen {
   box-shadow: -4px 0 0 var(--split-a), 4px 0 0 var(--split-b), 0 0 46px color-mix(in srgb, var(--accent) 45%, transparent);
 }
 html[data-world='static'] .screen-tab { background: var(--accent); color: var(--ink); }
-html[data-world='static'] .osd { text-shadow: -2px 0 0 var(--split-b), 2px 0 0 var(--split-a), 0 0 12px var(--accent); }
+/* The display is how the picture says what happened, so it stays easy to read: one thin split, not two. */
+html[data-world='static'] .osd { text-shadow: 2px 0 0 var(--split-b), 0 0 10px color-mix(in srgb, var(--accent) 60%, transparent); }
 html[data-world='static'] .pin { background: #07070a; color: var(--paper); border-color: var(--accent); box-shadow: 3px 3px 0 var(--split-b); }
 html[data-world='static'] .pin b { background: var(--accent); color: var(--ink); }
 html[data-world='static'] .pin:hover, html[data-world='static'] .pin.is-hot { background: var(--accent); color: var(--ink); }
@@ -70,6 +71,75 @@ html[data-world='static'] body::after {
   z-index: 20;
   pointer-events: none;
   background: repeating-linear-gradient(0deg, rgba(4, 4, 5, 0.34) 0 1px, transparent 1px 3px);
+}
+
+/* ---------- telling a mode from a fault ---------- */
+/* The note: a strip of paper tape stuck over the picture. It sits above the scanlines
+   and is the one clean, level-headed thing on the page, which is how a visitor can tell
+   that the rest is deliberate. It names the mode and holds the way back. */
+.signal {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 25;
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  gap: 6px 14px;
+  max-width: calc(100vw - 32px);
+  padding: 8px 8px 8px 10px;
+  background: var(--paper);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  box-shadow: 5px 5px 0 var(--magenta);
+  rotate: -1.2deg;
+  font: 700 0.68rem var(--mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  animation: note-in 0.3s var(--boing) both;
+}
+.signal[hidden] { display: none; }
+@keyframes note-in { from { scale: 0.6; opacity: 0; } }
+.signal-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.signal-line b { display: inline-flex; align-items: center; gap: 7px; padding: 4px 8px 3px; background: var(--ink); color: var(--paper); }
+.signal-line b::before { content: ''; width: 8px; height: 8px; background: var(--magenta); }
+/* One line in the station's own voice, for the first few seconds only. */
+.signal-note { display: none; grid-column: 1 / -1; grid-row: 2; font: 500 0.84rem var(--body); letter-spacing: 0; text-transform: none; }
+.signal.is-new .signal-note { display: block; }
+.signal-retune {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: end;
+  padding: 7px 10px 6px;
+  border: 0;
+  background: var(--ink);
+  color: var(--paper);
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+.signal-retune:hover { background: var(--magenta); color: var(--ink); }
+.signal-retune:active { translate: 2px 2px; }
+
+/* One tracking bar that crosses the whole page when the mode changes. Still otherwise. */
+.sweep {
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: 26vh;
+  z-index: 28;
+  opacity: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(0deg, transparent 0 5px, rgba(13, 12, 11, 0.5) 5px 7px),
+    linear-gradient(180deg, transparent, rgba(236, 231, 218, 0.16) 40%, rgba(236, 231, 218, 0.7) 78%, var(--magenta) 80%, var(--cyan) 84%, rgba(13, 12, 11, 0.8) 86%, transparent);
+}
+
+@media (max-width: 860px) {
+  .signal { left: 10px; bottom: 10px; max-width: calc(100vw - 20px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .signal { animation: none; }
 }
 
 /* Last on purpose: none of the glows above may replace the ink half of the two-colour

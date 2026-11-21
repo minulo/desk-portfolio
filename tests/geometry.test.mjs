@@ -164,3 +164,54 @@ test('a model part with interleaved vertex data is read correctly', () => {
   assert.ok(near(g.boundingBox.min.x, -1) && near(g.boundingBox.max.z, 1), `${g.boundingBox.min.x}..${g.boundingBox.max.z}`);
   assert.equal(g.getAttribute('position').count, 36);
 });
+
+// ---------- the stand-in objects and the set ----------
+import { placeholders } from '../src/scene/objects.js';
+import { objects, views } from '../src/config/scene.config.js';
+
+const ACCENT_HEX = { yellow: 0xffd400, crimson: 0xff2a44, magenta: 0xff2e88, cyan: 0x19e0ff, acid: 0xb6ff3c };
+/** Names of the accent colours a built object is painted with. */
+function accentsOf(geometry) {
+  const colour = geometry.getAttribute('aColor');
+  const found = new Set();
+  for (let i = 0; i < colour.count; i++) {
+    for (const [name, hex] of Object.entries(ACCENT_HEX)) {
+      const [r, g, b] = hexToRgb(hex);
+      if (Math.abs(colour.getX(i) - r) < 0.004 && Math.abs(colour.getY(i) - g) < 0.004 && Math.abs(colour.getZ(i) - b) < 0.004) found.add(name);
+    }
+  }
+  return [...found].sort();
+}
+
+test('every object on the set has a builder, and every featured object is on the set', () => {
+  for (const entry of objects) assert.equal(typeof placeholders[entry.placeholder], 'function', `${entry.id}: no builder named "${entry.placeholder}"`);
+  const ids = objects.map((o) => o.id);
+  for (const [section, view] of Object.entries(views)) {
+    if (view.feature) assert.ok(ids.includes(view.feature), `${section} features "${view.feature}", which is not on the set`);
+  }
+});
+
+test('the traffic cone is gone: nothing on the set, and no builder, is called cone', () => {
+  assert.deepEqual(objects.filter((o) => /cone/i.test(o.id) || /cone/i.test(o.placeholder)), []);
+  assert.deepEqual(Object.keys(placeholders).filter((name) => /cone/i.test(name)), []);
+  assert.ok(views.tour.feature, 'the Tour channel still features an object');
+});
+
+test('every stand-in object stands on the ground', () => {
+  for (const [name, build] of Object.entries(placeholders)) {
+    const geometry = build();
+    geometry.computeBoundingBox();
+    const { min, max } = geometry.boundingBox;
+    assert.ok(Math.abs(min.y) < 0.001, `${name}: its lowest point is at y = ${min.y.toFixed(4)}, not on the ground`);
+    assert.ok(max.y > 0.02, `${name}: it has no height`);
+    assert.ok(geometry.getAttribute('aSmooth'), `${name}: it has no outline normals`);
+  }
+});
+
+test('every object but the television carries exactly one accent colour', () => {
+  for (const [name, build] of Object.entries(placeholders)) {
+    const accents = accentsOf(build());
+    if (name === 'tv') assert.ok(accents.length >= 4, 'the television shows colour bars');
+    else assert.equal(accents.length, 1, `${name} is painted with ${accents.join(', ') || 'no accent'}`);
+  }
+});

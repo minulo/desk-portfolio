@@ -356,7 +356,7 @@ describe('in the browser', { skip }, () => {
         alone = await drawsPerFrame(() => goTo(page, id));
         seen.push((await state()).feature);
       }
-      assert.deepEqual(seen, ['cassette', 'tapes', 'cone', 'floppies', 'phone']);
+      assert.deepEqual(seen, ['cassette', 'tapes', 'boombox', 'floppies', 'phone']);
 
       const whole = await drawsPerFrame(() => goTo(page, 'intro'));
       assert.equal((await state()).feature, null, 'back on the opening view the whole set returns');
@@ -482,6 +482,108 @@ describe('in the browser', { skip }, () => {
     });
   });
 
+  test('Static mode shows what it is: the display, the labels, and a note with a way back', async () => {
+    await withPage({ viewport: { width: 1440, height: 900 } }, {}, async (page, problems) => {
+      await sceneReady(page);
+      await untilSettled(page, '.tape');
+      // What a visitor can read (innerText leaves out hidden wording).
+      const text = (sel) => page.evaluate((sel) => document.querySelector(sel).innerText.replace(/\s+/g, ' ').trim(), sel);
+      const labels = () => page.evaluate(() => [...document.querySelectorAll('.pin')].map((p) => p.textContent));
+
+      assert.equal(await page.isVisible('#signal'), false, 'no note while the signal is clean');
+      assert.match(await text('.osd-play'), /PLAY/i);
+      assert.match(await text('#intro .chip'), /^on air$/i);
+      assert.ok((await labels()).some((t) => /Static/.test(t)), 'the television is labelled as the way in');
+
+      await page.click('#world');
+      await page.waitForFunction(() => document.getElementById('scene').dataset.world === 'static', null, { timeout: 8000 });
+      // The picture says so itself...
+      assert.match(await text('.osd-play'), /NO SIGNAL/i);
+      assert.doesNotMatch(await text('.osd-play'), /PLAY/i);
+      assert.match(await text('#osd-code'), /MN-00 · -:--:--/);
+      assert.match(await text('.screen-tab'), /OFF AIR/i);
+      assert.match(await text('#intro .chip'), /^off air$/i);
+      // ...a note names it, explains itself at first, and offers the way back...
+      assert.ok(await page.isVisible('#signal'), 'the note is shown');
+      assert.match(await text('#signal'), /no signal/i);
+      assert.match(await text('#signal'), /dead channel/i);
+      assert.ok(await page.isVisible('#signal .signal-note'), 'the note explains itself when it first appears');
+      assert.ok(await page.isVisible('#retune'));
+      assert.match(await text('#world-status'), /static mode is on/i);
+      // ...and the television now offers the way back too.
+      assert.ok((await labels()).some((t) => /Retune/.test(t)), 'the television is labelled as the way back');
+      assert.ok(!(await labels()).some((t) => /Static/.test(t)));
+
+      // It holds across a channel change.
+      await goTo(page, 'tour');
+      await page.waitForFunction(() => document.documentElement.dataset.art === 'tour', null, { timeout: 8000 });
+      assert.match(await text('#osd-code'), /MN-03 · -:--:--/);
+      assert.ok(await page.isVisible('#signal'));
+
+      // Retune puts everything back, and the keyboard is not left on a control that vanished.
+      await page.focus('#retune');
+      await page.keyboard.press('Enter');
+      await page.waitForFunction(() => !document.getElementById('scene').dataset.world, null, { timeout: 8000 });
+      assert.equal(await page.evaluate(() => document.documentElement.dataset.world ?? ''), '');
+      assert.equal(await page.isVisible('#signal'), false);
+      assert.equal(await page.evaluate(() => document.activeElement.id), 'world', 'focus moves to the switch');
+      assert.equal(await page.getAttribute('#world', 'aria-pressed'), 'false');
+      assert.match(await text('#world-status'), /static mode is off/i);
+      assert.match(await text('.osd-play'), /PLAY/i);
+      assert.match(await text('#osd-code'), /MN-03 · 0:03:00/);
+      assert.ok((await labels()).some((t) => /Static/.test(t)));
+      assert.deepEqual(problems, []);
+    });
+  });
+
+  test('the note explains itself for a few seconds, then steps back to a label and the way back', async () => {
+    await withPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true }, {}, async (page) => {
+      await page.waitForTimeout(500);
+      await page.evaluate(() => document.getElementById('world').click());
+      await page.waitForSelector('#signal .signal-note', { state: 'visible', timeout: 4000 });
+      const fits = () => page.evaluate(() => { const r = document.getElementById('signal').getBoundingClientRect(); return r.left >= 0 && r.right <= window.innerWidth && r.bottom <= window.innerHeight; });
+      assert.ok(await fits(), 'the note is inside the screen on a phone');
+      await page.waitForSelector('#signal .signal-note', { state: 'hidden', timeout: 15000 });
+      assert.ok(await page.isVisible('#signal'), 'the label stays');
+      assert.ok(await page.isVisible('#retune'), 'the way back stays');
+      assert.ok(await fits());
+    });
+  });
+
+  test('in Static mode the 3D picture tears only while tuning, then holds still', async () => {
+    const torn = (page) => page.evaluate(() => document.getElementById('scene').dataset.torn ?? '');
+    await withPage({ viewport: { width: 1440, height: 900 } }, {}, async (page) => {
+      await sceneReady(page);
+      await goTo(page, 'about');
+      await untilSettled(page);
+      await page.waitForTimeout(600);
+      assert.equal(await torn(page), '', 'a clean signal is never torn');
+
+      await page.click('#world');
+      await page.waitForFunction(() => document.getElementById('scene').dataset.torn === '1', null, { timeout: 5000, polling: 'raf' });
+      await page.waitForFunction(() => !document.getElementById('scene').dataset.torn, null, { timeout: 8000 });
+      await untilSettled(page);
+      // The untorn picture is drawn on the frame after the tear ends; let that frame pass.
+      await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(done)))));
+      const a = await gl(page);
+      await page.waitForTimeout(1500);
+      assert.equal((await gl(page)).draws - a.draws, 0, 'the picture keeps moving after it has tuned in');
+      assert.equal(await torn(page), '');
+
+      // Changing channel tears it for a moment again.
+      await goTo(page, 'drops');
+      await page.waitForFunction(() => document.getElementById('scene').dataset.torn === '1', null, { timeout: 5000, polling: 'raf' });
+      await page.waitForFunction(() => !document.getElementById('scene').dataset.torn, null, { timeout: 8000 });
+    });
+    // With reduced motion there is no tearing at all.
+    await withPage({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' }, {}, async (page) => {
+      await sceneReady(page);
+      await page.click('#world');
+      await page.waitForFunction(() => document.getElementById('scene').dataset.world === 'static', null, { timeout: 8000 });
+      for (let i = 0; i < 6; i++) { assert.equal(await torn(page), ''); await page.waitForTimeout(120); }
+    });
+  });
+
   test('in Static mode, nothing keeps animating while idle and text still meets contrast', async () => {
     await withPage({ viewport: { width: 1440, height: 900 } }, {}, async (page) => {
       await sceneReady(page);
@@ -595,7 +697,8 @@ describe('in the browser', { skip }, () => {
           await page.evaluate(() => document.getElementById('world').click());
           await page.waitForFunction(() => document.documentElement.dataset.world === 'static');
         }
-        const stops = await page.evaluate(() => document.querySelectorAll('a[href], button:not([tabindex="-1"])').length);
+        // Controls that are on the page right now (the Retune button only exists in Static mode).
+        const stops = await page.evaluate(() => [...document.querySelectorAll('a[href], button:not([tabindex="-1"])')].filter((el) => el.getClientRects().length > 0).length);
         const weak = [];
         for (let i = 0; i < stops; i++) {
           await page.keyboard.press('Tab');

@@ -47,7 +47,7 @@ drawing, and a 13 MB icon library downloaded in dev mode. This version keeps the
 rules that fixed that.
 
 - **Text first.** All content is plain HTML and CSS. It is on screen before any
-  script runs: about 4 KB of HTML, 6 KB of CSS and 3 KB of script, compressed.
+  script runs: about 5 KB of HTML, 7 KB of CSS and 3 KB of script, compressed.
 - **3D afterwards.** three.js is a separate download that starts once the page is
   up. If it fails, or the browser has no WebGL, the page is still complete.
 - **One pass.** The scene is drawn with three small shaders and no
@@ -73,8 +73,8 @@ not frame times:
 | Draw calls per frame | 64 | 141 | 31 on the opening view, 7 on a channel |
 | Shader programs compiled | 30 | 40 | 3 |
 | Frames drawn while idle | every frame | every frame | 0, in Static mode too |
-| Script up front (gzip) | 274 KB | 295 KB | 2.8 KB |
-| Script in total (gzip) | 274 KB | 295 KB | about 173 KB, 21 KB of it only when a model file is configured |
+| Script up front (gzip) | 274 KB | 295 KB | 3.1 KB |
+| Script in total (gzip) | 274 KB | 295 KB | about 174 KB, 21 KB of it only when a model file is configured |
 
 `npm test` enforces these as limits, so a change that brings the cost back fails.
 
@@ -103,6 +103,20 @@ television) sets `data-world="static"` on `<html>`. Everything in
 outlines split into two colours, scanlines over the page. This is the only place
 glow is allowed. The 3D scene follows inside the same three shaders (one switch value,
 plus new line and shadow colours), with no extra pass.
+
+A broken-looking page must not be mistaken for a broken page, so the mode shows that
+it is a mode, and says so once, quietly:
+
+| | How |
+|---|---|
+| The change is staged | Static with a large NO SIGNAL fills the screen frame while one tracking bar crosses the whole page |
+| The picture then holds still | The 3D picture tears for about a second while it tunes in, and for a moment on each channel change, then locks. It is never left torn |
+| The world rewords itself | The display reads `NO SIGNAL` with no time code, the station tab and the opening label read `OFF AIR`, and the television's label changes from Static to Retune |
+| A note names it | A strip of paper tape, the one clean thing on the page: `NO SIGNAL · DEAD CHANNEL`, a Retune button, and for the first seven seconds one line in the station's voice |
+| Screen readers are told plainly | A status message says the mode is on, that it is on purpose, and how to turn it off |
+
+Wording that differs between the modes is in the page twice, marked `when-clean` and
+`when-static`; the stylesheet shows one.
 
 **Graphic language.** Hazard stripes, tape, sticker labels, stamped serial numbers,
 barcodes, halftone dots, a comic speech panel, slanted block edges, CRT scanlines.
@@ -207,7 +221,8 @@ strengthen the warm band at the shadow edge.
 - Below 860 px wide the art sits above the text.
 - All content works with the keyboard, with JavaScript off, and without WebGL.
 - The Static switch is a real button with one fixed name ("Static mode") that reports
-  its state (`aria-pressed`).
+  its state (`aria-pressed`). Turning it on is announced, and the Retune button in the
+  note hands the keyboard back to the switch.
 - Keyboard focus is a two-colour ring in both modes, so it shows on every background.
 - Text meets WCAG AA contrast against its block in both modes; the tests check both.
 - `prefers-reduced-motion` stops every animation, the channel flip included.

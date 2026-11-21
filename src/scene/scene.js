@@ -118,7 +118,7 @@ export async function createScene({ canvas, pinLayer, objects, views, stageTop, 
       soloBox.getBoundingSphere(ball);
     }
     return {
-      entry, holder, lift, toon, outline, shadow, box, soloBox, turn, centre, stand, standHalf, ball, pin: null,
+      entry, holder, lift, toon, outline, shadow, box, soloBox, turn, centre, stand, standHalf, ball, pin: null, pinText: null,
       top: new Vector3(entry.position[0], box.max.y + 0.03, entry.position[2]),
     };
   }));
@@ -249,11 +249,44 @@ export async function createScene({ canvas, pinLayer, objects, views, stageTop, 
     if (item) canvas.dataset.feature = item.entry.id; else delete canvas.dataset.feature;
   }
 
+  /**
+   * A burst of tearing that dies away in hard steps: the picture finding its hold.
+   * At rest the picture is never torn.
+   */
+  let reseeded = 0;
+  function steady() {
+    tweens.cancel(shared.uTear);
+    shared.uTear.value = 0;
+    delete canvas.dataset.torn;
+  }
+  function tear(duration) {
+    if (reducedMotion()) return steady();
+    tween({
+      key: shared.uTear,
+      duration,
+      onFrame: (p) => {
+        const amount = Math.ceil((1 - p) * 5) / 5; // 1, 0.8 ... 0.2, then 0 on the last frame
+        const now = performance.now();
+        if (amount !== shared.uTear.value || now - reseeded > 80) {
+          shared.uSeed.value = Math.random(); // the bands jump, a few times a second
+          reseeded = now;
+        }
+        shared.uTear.value = amount;
+        if (amount > 0) canvas.dataset.torn = '1'; else delete canvas.dataset.torn;
+        invalidate();
+      },
+    });
+  }
+
   /** Switch the Static (other-world) look on or off. */
   function setWorld(on) {
     world = !!on;
     if (world) canvas.dataset.world = 'static'; else delete canvas.dataset.world;
-    shared.uSeed.value = Math.random();
+    // An object that toggles the mode says what a click on it will do next.
+    for (const it of clickable) {
+      if (it.pinText && it.entry.action === 'world') it.pinText.textContent = (world && it.entry.labelOn) || it.entry.label || it.entry.action;
+    }
+    if (world) tear(1000); else steady();
     applyLook();
   }
 
@@ -281,7 +314,8 @@ export async function createScene({ canvas, pinLayer, objects, views, stageTop, 
     artRect = look.rect;
     accent = hexToRgb(look.accent);
     wall = hexToRgb(look.wall);
-    shared.uSeed.value = Math.random();
+    const animate = (look.animate ?? true) && !reducedMotion();
+    if (world && animate) tear(450); // a channel change in Static tears the picture for a moment
 
     setHover(null);
     applyLook();
@@ -293,7 +327,7 @@ export async function createScene({ canvas, pinLayer, objects, views, stageTop, 
       it.lift.position.y = 0;
       it.lift.scale.setScalar(1);
     }
-    if ((look.animate ?? true) && !reducedMotion()) {
+    if (animate) {
       settle.back = 1;
       tween({ key: settle, duration: 380, onFrame: (p) => { settle.back = 1 - p; placeCamera(); } });
       // A featured object pops in: a little small, past full size, then settled.
@@ -394,7 +428,8 @@ export async function createScene({ canvas, pinLayer, objects, views, stageTop, 
     // index links and the switch.
     const pin = document.createElement('div');
     pin.className = 'pin';
-    pin.append(Object.assign(document.createElement('b'), { textContent: label.num }), label.text);
+    it.pinText = document.createTextNode(label.text);
+    pin.append(Object.assign(document.createElement('b'), { textContent: label.num }), it.pinText);
     pin.addEventListener('click', () => activate(it));
     pin.addEventListener('pointerenter', () => setHover(it));
     pin.addEventListener('pointerleave', () => setHover(null));

@@ -42,7 +42,7 @@ signature accent. Changing section flips the channel.
 | Section change | Slanted wipe | Channel flip: static, tracking bands, vertical roll, channel number |
 | Type | Anton, Chakra Petch | Barlow Condensed 800 italic (skewed, knocked out), Space Mono |
 | Details | Stickers, tape | Plus barcodes, stamped serials, spec text, a speech panel |
-| 3D set | Desk with monitor, keyboard, mug | Concrete slab with a CRT television, VHS tapes, cassette, floppy disks, brick phone, cone, spray can |
+| 3D set | Desk with monitor, keyboard, mug | Concrete slab with a CRT television, VHS tapes, cassette, floppy disks, brick phone, boombox, spray can (a traffic cone at first; Minh asked for something else) |
 | 3D style | Ink outline, two tones | Three tones; a second, wider paper outline so objects read as die-cut stickers that overlap the frame |
 | What a section shows | A close-up of the desk | The opening view shows the whole set; every other channel features one object by itself on a small stand |
 | Other-world | none | "Static" mode: deep black, glowing accents, split-colour outlines and type, scanlines on everything |
@@ -60,6 +60,27 @@ to overlap the frame's edge. The camera is placed by a small tested function
 (`src/lib/feature-view.js`) from a direction and a fill share, so a replacement model
 of a different shape is still framed. Objects are clickable shortcuts on the opening
 view only; a featured object answers a click with a squash and stretch.
+
+## Telling a mode from a fault (added after Minh's first look)
+
+Minh's note: make it clear the corrupted version is corrupted on purpose, "so visitors
+don't think it is a visual bug", without just saying so: "strike a balance between
+showing and telling". What I did, and why:
+
+- **Show first.** Faults are sudden and stay random; a mode has an entrance and then
+  holds. So the switch is staged (static and NO SIGNAL in the frame, one tracking bar
+  down the whole page), and the 3D picture tears only while it tunes in and then locks.
+  The permanent tearing of the first build was the most fault-like thing on the page.
+- **Let the world say it.** The on-screen display, the station tab, the opening label
+  and one serial stamp reword themselves (NO SIGNAL, OFF AIR, SIGNAL LOST), and the
+  television's label becomes Retune.
+- **Tell once, lightly, in the station's voice.** A strip of paper tape names the mode
+  (NO SIGNAL · DEAD CHANNEL), carries a Retune button, and for seven seconds one line:
+  "Same station, other side of the dial." It is drawn clean, above the scanlines: the
+  one unbroken thing on a broken-looking page is the cue that the rest is deliberate.
+  A fault does not come with a way back; a mode does.
+- **Plain words where there is nothing to see.** Screen readers get a status message
+  that says the look is on purpose and how to leave it.
 
 ## Names
 

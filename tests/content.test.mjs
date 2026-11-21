@@ -122,3 +122,29 @@ test('every section carries a stamped serial, and decorative barcodes are hidden
   assert.ok(barcodes.length >= 3, `found ${barcodes.length} barcodes`);
   assert.deepEqual(barcodes.filter((t) => attr(t, 'aria-hidden') !== 'true'), []);
 });
+
+test('Static mode comes with a note that names it and a way back, hidden until it is on', () => {
+  const note = tags('div').find((t) => attr(t, 'id') === 'signal');
+  assert.ok(note, 'there is a <div id="signal">');
+  assert.match(note, /\shidden(\s|>|=)/, 'the note is hidden until Static is on');
+  const retune = tags('button').find((t) => attr(t, 'id') === 'retune');
+  assert.ok(retune, 'there is a <button id="retune">');
+  assert.equal(attr(retune, 'type'), 'button');
+  const body = /<div[^>]*id="signal"[\s\S]*?<\/div>/.exec(html)[0];
+  assert.match(body, /No signal/i);
+  assert.match(body, /Dead channel/i);
+});
+
+test('a change of mode is announced to screen readers in plain words', () => {
+  const status = [...html.matchAll(/<p\b[^>]*>/g)].map((m) => m[0]).find((t) => attr(t, 'id') === 'world-status');
+  assert.ok(status, 'there is a <p id="world-status">');
+  assert.equal(attr(status, 'role'), 'status');
+});
+
+test('labels that change wording in Static mode have both wordings in the page', () => {
+  const clean = (html.match(/class="when-clean"/g) ?? []).length;
+  const off = (html.match(/class="when-static"/g) ?? []).length;
+  assert.ok(off >= 3, `only ${off} labels have a Static wording`);
+  assert.ok(clean >= 2, `only ${clean} labels have a clean-signal wording to hide`);
+  assert.match(read('src', 'styles', 'base.css'), /\.when-static\s*\{[^}]*display:\s*none/, 'the Static wording is hidden by default');
+});
