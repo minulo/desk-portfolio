@@ -44,12 +44,15 @@ export async function loadObject(entry) {
 }
 
 // The glTF loader and the model code are only downloaded when a model is configured.
+// The meshopt decoder is what `gltf-transform optimize` output needs (its default
+// compression). Draco-compressed files are not supported.
 async function loadModel(url) {
-  const [{ GLTFLoader }, { geometryFromScene }] = await Promise.all([
+  const [{ GLTFLoader }, { MeshoptDecoder }, { geometryFromScene }] = await Promise.all([
     import('three/examples/jsm/loaders/GLTFLoader.js'),
+    import('three/examples/jsm/libs/meshopt_decoder.module.js'),
     import('./model-geometry.js'),
   ]);
-  const gltf = await new GLTFLoader().loadAsync(url);
+  const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url);
   gltf.scene.updateMatrixWorld(true);
   return geometryFromScene(gltf.scene);
 }

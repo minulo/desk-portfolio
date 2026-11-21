@@ -1,6 +1,31 @@
-import { BufferAttribute, Color } from 'three';
+import { BufferAttribute, BufferGeometry, Color } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { addOutlineNormals } from './geometry.js';
+
+/**
+ * Copies an attribute into plain floats. Compressed models store positions and normals
+ * as scaled integers, sometimes interleaved in one buffer; `getX/Y/Z` undo both.
+ */
+function asFloats(attribute, itemSize = 3) {
+  const out = new Float32Array(attribute.count * itemSize);
+  for (let i = 0; i < attribute.count; i++) {
+    out[i * itemSize] = attribute.getX(i);
+    out[i * itemSize + 1] = attribute.getY(i);
+    if (itemSize > 2) out[i * itemSize + 2] = attribute.getZ(i);
+  }
+  return new BufferAttribute(out, itemSize);
+}
+
+/** A copy of a mesh's geometry holding only what is needed here, as plain floats. */
+function plainCopy(source) {
+  const g = new BufferGeometry();
+  g.setAttribute('position', asFloats(source.getAttribute('position')));
+  if (source.getAttribute('normal')) g.setAttribute('normal', asFloats(source.getAttribute('normal')));
+  if (source.getAttribute('color')) g.setAttribute('color', asFloats(source.getAttribute('color')));
+  if (source.index) g.setIndex(source.index.clone());
+  for (const group of source.groups) g.addGroup(group.start, group.count, group.materialIndex);
+  return g;
+}
 
 /**
  * Flattens a loaded model (a three.js object tree, as GLTFLoader returns it) into one
@@ -20,7 +45,7 @@ export function geometryFromScene(root) {
   root.traverse((node) => {
     if (!node.isMesh || !node.geometry?.getAttribute('position')) return;
 
-    let g = node.geometry.clone().applyMatrix4(node.matrixWorld);
+    let g = plainCopy(node.geometry).applyMatrix4(node.matrixWorld);
     if (g.index) g = g.toNonIndexed(); // keeps every attribute, including vertex colours
     if (!g.getAttribute('normal')) g.computeVertexNormals();
 

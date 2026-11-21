@@ -3,8 +3,9 @@
 import { test, before, after, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import {
-  loadPlaywright, CHROMIUM_ARGS, build, serve, builtSizes, glHook, boxGltf, SECTION_IDS, VIEWPORTS,
+  loadPlaywright, CHROMIUM_ARGS, build, serve, builtSizes, glHook, boxGltf, SECTION_IDS, VIEWPORTS, ROOT,
 } from './helpers.mjs';
 
 const KB = 1024;
@@ -301,6 +302,28 @@ describe('in the browser', { skip }, () => {
       await page.mouse.click(spot.x, spot.y);
       await page.waitForTimeout(2500);
       assert.equal(await page.evaluate(() => document.documentElement.dataset.section), 'drops');
+    });
+  });
+
+  test('a model compressed with `gltf-transform optimize` replaces its placeholder', async () => {
+    // tests/fixtures/box-optimized.glb is a box run through `@gltf-transform/cli optimize` 4.5.1:
+    // meshopt-compressed, with positions and normals stored as integers.
+    const glb = readFileSync(path.join(ROOT, 'tests', 'fixtures', 'box-optimized.glb'));
+    const useFixture = async (p) => {
+      await p.route('**/__fixture/box-optimized.glb', (route) => route.fulfill({ contentType: 'model/gltf-binary', body: glb }));
+      await p.route('**/scene.config.js*', async (route) => {
+        const response = await route.fetch();
+        const original = await response.text();
+        const body = original.replace("id: 'mug', model: null", "id: 'mug', model: '/__fixture/box-optimized.glb'");
+        assert.notEqual(body, original, 'the config has a mug entry with `model: null` to replace');
+        await route.fulfill({ response, body });
+      });
+    };
+    await withPage({ viewport: { width: 1280, height: 800 } }, { url: () => dev.url, prepare: useFixture }, async (page, problems) => {
+      await sceneReady(page);
+      await page.waitForTimeout(500);
+      assert.deepEqual(problems, []);
+      assert.equal(await page.evaluate(() => document.getElementById('scene').dataset.models), '1');
     });
   });
 

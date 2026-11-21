@@ -66,7 +66,7 @@ not frame times:
 | Shader programs compiled | 30 | 40 | 3 |
 | Frames drawn while idle | every frame | every frame | 0 |
 | Script up front (gzip) | 274 KB | 295 KB | 2.4 KB |
-| Script in total (gzip) | 274 KB | 295 KB | about 164 KB |
+| Script in total (gzip) | 274 KB | 295 KB | about 171 KB, 21 KB of it only when a model file is configured |
 | Script downloaded in dev mode | not measured | 22.2 MB | 6.6 MB |
 
 `npm test` enforces these as limits, so a change that brings the cost back fails.
@@ -147,6 +147,10 @@ on the desk. It is drawn in the site's style: each part keeps its base colour
 (multiplied by its vertex colours, if it has them) and gets the outline and flat
 shadow. **Its textures are not used.** A model whose detail lives only in its texture will look plain; that is the
 known limit of this version. If the file cannot be loaded, the placeholder is used.
+
+Files compressed with `npx @gltf-transform/cli optimize` load as they are (checked
+with version 4.5.1, whose default is meshopt compression). Draco-compressed files are
+not supported.
 
 For a character model, raise `sss` on its entry (for example `sss: 0.8`) to
 strengthen the warm band at the shadow edge.

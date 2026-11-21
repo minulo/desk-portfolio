@@ -11,6 +11,7 @@ export default defineConfig({
       'three',
       'three/examples/jsm/utils/BufferGeometryUtils.js',
       'three/examples/jsm/loaders/GLTFLoader.js',
+      'three/examples/jsm/libs/meshopt_decoder.module.js',
     ],
   },
 });

@@ -115,3 +115,52 @@ test('the result carries the normals the ink outline needs', () => {
 test('a model with no meshes is rejected with a clear message', () => {
   assert.throws(() => geometryFromScene(new Group()), /no meshes/);
 });
+
+// ---------- compressed models: integer ("quantised") and interleaved vertex data ----------
+import { InterleavedBuffer, InterleavedBufferAttribute } from 'three';
+
+/** A 2 x 2 x 2 box whose positions and normals are stored as normalised integers, as gltf-transform writes them. */
+function quantisedBox() {
+  const box = new BoxGeometry(2, 2, 2);
+  const pos = box.getAttribute('position');
+  const nor = box.getAttribute('normal');
+  box.setAttribute('position', new BufferAttribute(Int16Array.from(pos.array, (v) => Math.round(v * 32767)), 3, true));
+  box.setAttribute('normal', new BufferAttribute(Int8Array.from(nor.array, (v) => Math.round(v * 127)), 3, true));
+  return box;
+}
+
+test('a quantised model part ends up where the model puts it, not clamped to its integer range', () => {
+  const mesh = new Mesh(quantisedBox(), new MeshStandardMaterial());
+  mesh.position.set(5, 0, 0);
+  mesh.scale.setScalar(0.5);
+  const g = geometryFromScene(modelWith(mesh));
+  g.computeBoundingBox();
+  assert.ok(near(g.boundingBox.min.x, 4.5, 1e-3) && near(g.boundingBox.max.x, 5.5, 1e-3), `x ${g.boundingBox.min.x}..${g.boundingBox.max.x}`);
+  assert.ok(near(g.boundingBox.min.y, -0.5, 1e-3) && near(g.boundingBox.max.y, 0.5, 1e-3), `y ${g.boundingBox.min.y}..${g.boundingBox.max.y}`);
+});
+
+test('a quantised model part gets real-number positions and unit-length normals', () => {
+  const g = geometryFromScene(modelWith(new Mesh(quantisedBox(), new MeshStandardMaterial())));
+  assert.ok(g.getAttribute('position').array instanceof Float32Array, 'positions are floats');
+  const n = g.getAttribute('normal');
+  const s = g.getAttribute('aSmooth');
+  for (const i of [0, 10, n.count - 1]) {
+    assert.ok(near(Math.hypot(n.getX(i), n.getY(i), n.getZ(i)), 1, 1e-2), `normal ${i}`);
+    assert.ok(near(Math.hypot(s.getX(i), s.getY(i), s.getZ(i)), 1, 1e-2), `outline normal ${i}`);
+  }
+});
+
+test('a model part with interleaved vertex data is read correctly', () => {
+  const box = new BoxGeometry(2, 2, 2).toNonIndexed();
+  const pos = box.getAttribute('position');
+  const nor = box.getAttribute('normal');
+  const data = new Float32Array(pos.count * 6);
+  for (let i = 0; i < pos.count; i++) data.set([pos.getX(i), pos.getY(i), pos.getZ(i), nor.getX(i), nor.getY(i), nor.getZ(i)], i * 6);
+  const buffer = new InterleavedBuffer(data, 6);
+  box.setAttribute('position', new InterleavedBufferAttribute(buffer, 3, 0));
+  box.setAttribute('normal', new InterleavedBufferAttribute(buffer, 3, 3));
+  const g = geometryFromScene(modelWith(new Mesh(box, new MeshStandardMaterial())));
+  g.computeBoundingBox();
+  assert.ok(near(g.boundingBox.min.x, -1) && near(g.boundingBox.max.z, 1), `${g.boundingBox.min.x}..${g.boundingBox.max.z}`);
+  assert.equal(g.getAttribute('position').count, 36);
+});
