@@ -48,11 +48,11 @@ html[data-side='left'] { --art-x: 25%; }
   aspect-ratio: 1;
   margin: calc(min(78vh, 46vw) / -2) 0 0 calc(min(78vh, 46vw) / -2);
   opacity: 0.9;
-  will-change: transform;
-  animation: turn 120s linear infinite;
+  /* Turns one step when the section changes, then rests. Nothing here moves on its own. */
+  transform: rotate(var(--turn, 0deg));
+  transition: transform 0.9s var(--snap);
 }
 .art-sigil-text { font: 700 17px var(--label); letter-spacing: 0.34em; }
-@keyframes turn { to { transform: rotate(360deg); } }
 
 #scene {
   position: absolute;

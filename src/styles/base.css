@@ -31,8 +31,10 @@ h3 { font-family: var(--label); font-weight: 700; font-size: 0.8rem; letter-spac
 .hl { color: var(--hl); }
 .nb { white-space: nowrap; } /* keeps a two-word phrase on one line */
 
-/* Neon is the focus colour everywhere. */
+/* Keyboard focus: an ink band with a neon band outside it. Two colours that contrast
+   strongly with each other, so at least one shows on every background on the site. */
 :focus-visible { outline: 3px solid var(--lime); outline-offset: 3px; }
+:root :is(a, button):focus-visible { outline: 3px solid var(--lime); outline-offset: 3px; box-shadow: 0 0 0 3px var(--ink); }
 
 .skip {
   position: fixed; left: 12px; top: -80px; z-index: 30;

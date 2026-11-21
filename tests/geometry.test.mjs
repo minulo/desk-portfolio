@@ -60,3 +60,58 @@ test('fitScale makes the largest side equal to the target size', () => {
 test('fitScale stays finite for a model with no size', () => {
   assert.ok(Number.isFinite(fitScale({ x: 0, y: 0, z: 0 }, 0.5)));
 });
+
+// ---------- geometryFromScene: turning a loaded model into painted geometry ----------
+import { BufferAttribute, Group, Mesh, MeshStandardMaterial } from 'three';
+import { geometryFromScene } from '../src/scene/model-geometry.js';
+
+const MID_GREY_LINEAR = 0.2158605; // what #808080 is once converted to linear light
+const first = (g) => { const c = g.getAttribute('aColor'); return [c.getX(0), c.getY(0), c.getZ(0)]; };
+
+function modelWith(mesh) {
+  const root = new Group();
+  root.add(mesh);
+  root.updateMatrixWorld(true);
+  return root;
+}
+
+test('a model part keeps its material colour as it looks on screen (#808080 stays mid grey)', () => {
+  const g = geometryFromScene(modelWith(new Mesh(new BoxGeometry(1, 1, 1), new MeshStandardMaterial({ color: 0x808080 }))));
+  for (const v of first(g)) assert.ok(near(v, 128 / 255, 2e-3), `channel ${v}`);
+});
+
+test('an indexed model keeps its vertex colours', () => {
+  const box = new BoxGeometry(1, 1, 1); // indexed, like almost every glTF
+  const colours = new Float32Array(box.getAttribute('position').count * 3);
+  for (let i = 0; i < colours.length; i += 3) colours[i] = 1; // pure red
+  box.setAttribute('color', new BufferAttribute(colours, 3));
+  const g = geometryFromScene(modelWith(new Mesh(box, new MeshStandardMaterial({ color: 0xffffff, vertexColors: true }))));
+  const c = g.getAttribute('aColor');
+  for (const i of [0, 7, c.count - 1]) {
+    assert.ok(near(c.getX(i), 1, 2e-3) && near(c.getY(i), 0, 2e-3) && near(c.getZ(i), 0, 2e-3), `vertex ${i}: ${c.getX(i)}, ${c.getY(i)}, ${c.getZ(i)}`);
+  }
+});
+
+test('vertex colours are converted from linear light to screen colour', () => {
+  const box = new BoxGeometry(1, 1, 1);
+  box.setAttribute('color', new BufferAttribute(new Float32Array(box.getAttribute('position').count * 3).fill(MID_GREY_LINEAR), 3));
+  const g = geometryFromScene(modelWith(new Mesh(box, new MeshStandardMaterial({ color: 0xffffff, vertexColors: true }))));
+  for (const v of first(g)) assert.ok(near(v, 128 / 255, 2e-3), `channel ${v}`);
+});
+
+test('each part is placed where the model puts it', () => {
+  const mesh = new Mesh(new BoxGeometry(1, 1, 1), new MeshStandardMaterial());
+  mesh.position.set(5, 0, 0);
+  const g = geometryFromScene(modelWith(mesh));
+  g.computeBoundingBox();
+  assert.ok(near(g.boundingBox.min.x, 4.5) && near(g.boundingBox.max.x, 5.5), `${g.boundingBox.min.x}..${g.boundingBox.max.x}`);
+});
+
+test('the result carries the normals the ink outline needs', () => {
+  const g = geometryFromScene(modelWith(new Mesh(new BoxGeometry(1, 1, 1), new MeshStandardMaterial())));
+  assert.equal(g.getAttribute('aSmooth').count, g.getAttribute('position').count);
+});
+
+test('a model with no meshes is rejected with a clear message', () => {
+  assert.throws(() => geometryFromScene(new Group()), /no meshes/);
+});

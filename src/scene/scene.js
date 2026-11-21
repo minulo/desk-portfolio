@@ -6,7 +6,7 @@ import { loadObject } from './loader.js';
 import { desk } from './objects.js';
 import { hexToRgb } from './geometry.js';
 import { artWindowOffset } from '../lib/view-offset.js';
-import { runTween } from '../lib/tween.js';
+import { createTweenTracker } from '../lib/tween.js';
 import { renderScale } from '../lib/render-scale.js';
 
 /**
@@ -79,12 +79,12 @@ export async function createScene({ canvas, pinLayer, objects, views, deskTop, l
   const stats = { frames: 0, lastFrameMs: 0, slowestGapMs: 0 };
   let scheduled = false;
   let lastTick = 0;
-  let animating = 0; // number of running tweens; frame gaps are only timed while > 0
+  const tweens = createTweenTracker(); // frame gaps are only timed while a tween is running
 
   function draw(now) {
     scheduled = false;
-    if (animating && lastTick) stats.slowestGapMs = Math.max(stats.slowestGapMs, now - lastTick);
-    lastTick = animating ? now : 0;
+    if (tweens.active && lastTick) stats.slowestGapMs = Math.max(stats.slowestGapMs, now - lastTick);
+    lastTick = tweens.active ? now : 0;
     const t0 = performance.now();
     renderer.render(scene, camera);
     stats.lastFrameMs = performance.now() - t0;
@@ -96,10 +96,10 @@ export async function createScene({ canvas, pinLayer, objects, views, deskTop, l
     scheduled = true;
     requestAnimationFrame(draw);
   }
+  /** Start a tween. The returned function cancels it. */
   function tween(options) {
-    animating++;
     stats.slowestGapMs = 0;
-    return runTween({ ...options, onDone: () => { animating--; options.onDone?.(); } });
+    return tweens.run(options);
   }
 
   // ----- camera -----
@@ -128,9 +128,14 @@ export async function createScene({ canvas, pinLayer, objects, views, deskTop, l
     invalidate();
   }
 
+  // The size the canvas is displayed at, which is not always the window's size: with a
+  // visible scrollbar the page is narrower, and the picture would be stretched.
+  const viewWidth = () => canvas.clientWidth || window.innerWidth;
+  const viewHeight = () => canvas.clientHeight || window.innerHeight;
+
   function layout() {
-    const W = window.innerWidth;
-    const H = window.innerHeight;
+    const W = viewWidth();
+    const H = viewHeight();
     const offset = artWindowOffset({ width: W, height: H }, artRect);
     camera.aspect = W / H;
     camera.setViewOffset(W, H, offset.x, offset.y, W, H);
@@ -140,9 +145,9 @@ export async function createScene({ canvas, pinLayer, objects, views, deskTop, l
   }
 
   function resize() {
-    const ratio = renderScale(window.innerWidth, window.innerHeight, window.devicePixelRatio);
+    const ratio = renderScale(viewWidth(), viewHeight(), window.devicePixelRatio);
     renderer.setPixelRatio(ratio);
-    renderer.setSize(window.innerWidth, window.innerHeight, false);
+    renderer.setSize(viewWidth(), viewHeight(), false);
     shared.uResolution.value.set(canvas.width, canvas.height);
     shared.uPixel.value = ratio;
     layout();
@@ -191,7 +196,7 @@ export async function createScene({ canvas, pinLayer, objects, views, deskTop, l
   let hovered = null;
 
   function pick(clientX, clientY) {
-    ndc.set((clientX / window.innerWidth) * 2 - 1, -(clientY / window.innerHeight) * 2 + 1);
+    ndc.set((clientX / viewWidth()) * 2 - 1, -(clientY / viewHeight()) * 2 + 1);
     raycaster.setFromCamera(ndc, camera);
     let best = null;
     let bestDistance = Infinity;
@@ -231,7 +236,7 @@ export async function createScene({ canvas, pinLayer, objects, views, deskTop, l
       moveQueued = false;
       setHover(pick(lastMove.clientX, lastMove.clientY));
       if (lastMove.pointerType !== 'touch' && !reducedMotion()) {
-        parallax.set(((lastMove.clientX / window.innerWidth) * 2 - 1) * 0.03, -((lastMove.clientY / window.innerHeight) * 2 - 1) * 0.02);
+        parallax.set(((lastMove.clientX / viewWidth()) * 2 - 1) * 0.03, -((lastMove.clientY / viewHeight()) * 2 - 1) * 0.02);
         placeCamera();
       }
     });
@@ -262,14 +267,17 @@ export async function createScene({ canvas, pinLayer, objects, views, deskTop, l
     for (const it of clickable) {
       if (!it.pin) continue;
       projected.copy(it.top).project(camera);
-      const x = (projected.x * 0.5 + 0.5) * window.innerWidth;
-      const y = (-projected.y * 0.5 + 0.5) * window.innerHeight;
+      const x = (projected.x * 0.5 + 0.5) * viewWidth();
+      const y = (-projected.y * 0.5 + 0.5) * viewHeight();
       it.pin.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-12px, calc(-100% - 16px))`;
     }
   }
 
   resize();
   window.addEventListener('resize', resize);
+  // If the browser takes the graphics context away (sleep, GPU reset, too many tabs) and
+  // later returns it, three.js rebuilds its state but nothing asks for a new frame.
+  canvas.addEventListener('webglcontextrestored', resize);
 
   return { show, resize, stats, get modelCount() { return modelCount; } };
 }

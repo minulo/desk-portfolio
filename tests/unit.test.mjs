@@ -166,3 +166,60 @@ test('renderScale copes with a missing or zero-sized window', () => {
   assert.equal(renderScale(0, 0, 2), 2);
   assert.equal(renderScale(800, 600, undefined), 1);
 });
+
+// ---------- resolveAsset ----------
+import { resolveAsset } from '../src/lib/asset-url.js';
+
+test('resolveAsset keeps a root-style path inside the folder the site is served from', () => {
+  assert.equal(resolveAsset('/models/mug.glb', 'https://example.github.io/desk-portfolio/'), 'https://example.github.io/desk-portfolio/models/mug.glb');
+});
+
+test('resolveAsset treats a relative path the same way', () => {
+  assert.equal(resolveAsset('models/mug.glb', 'https://example.github.io/desk-portfolio/'), 'https://example.github.io/desk-portfolio/models/mug.glb');
+});
+
+test('resolveAsset works when the site is served from the root', () => {
+  assert.equal(resolveAsset('/models/mug.glb', 'http://localhost:5173/'), 'http://localhost:5173/models/mug.glb');
+});
+
+test('resolveAsset ignores the page\'s file name and query', () => {
+  assert.equal(resolveAsset('/models/mug.glb', 'https://example.com/site/index.html?perf'), 'https://example.com/site/models/mug.glb');
+});
+
+test('resolveAsset leaves a full address alone', () => {
+  assert.equal(resolveAsset('https://cdn.example.com/m.glb', 'https://example.com/site/'), 'https://cdn.example.com/m.glb');
+});
+
+// ---------- createTweenTracker ----------
+import { createTweenTracker } from '../src/lib/tween.js';
+
+test('a tracked tween counts as active while it runs and not after it finishes', () => {
+  const clock = fakeClock();
+  const tracker = createTweenTracker({ raf: clock.raf, now: clock.now });
+  tracker.run({ duration: 100, onFrame() {} });
+  assert.equal(tracker.active, 1);
+  for (let i = 0; i < 10; i++) clock.tick(30);
+  assert.equal(tracker.active, 0);
+});
+
+test('cancelling a tracked tween stops counting it, and cancelling twice does not go negative', () => {
+  const clock = fakeClock();
+  const tracker = createTweenTracker({ raf: clock.raf, now: clock.now });
+  let done = 0;
+  const cancel = tracker.run({ duration: 1000, onFrame() {}, onDone: () => { done++; } });
+  clock.tick(16);
+  cancel();
+  cancel();
+  clock.tick(2000);
+  assert.equal(tracker.active, 0);
+  assert.equal(done, 0);
+});
+
+test('cancelling one tracked tween leaves the other counted', () => {
+  const clock = fakeClock();
+  const tracker = createTweenTracker({ raf: clock.raf, now: clock.now });
+  const cancelFirst = tracker.run({ duration: 1000, onFrame() {} });
+  tracker.run({ duration: 1000, onFrame() {} });
+  cancelFirst();
+  assert.equal(tracker.active, 1);
+});

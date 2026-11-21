@@ -47,8 +47,11 @@ around not doing that work.
 - **One pass.** The scene is drawn with three small shaders and no
   post-processing, shadow maps or textures.
 - **Only when something changes.** A frame is drawn on a section change, a hover,
-  a pointer move or a resize. Sitting still, the page draws nothing.
-- **Bounded resolution.** The canvas is capped at 4.5 megapixels and 2x.
+  a pointer move or a resize. Sitting still, the 3D scene draws nothing, and away
+  from the opening screen nothing on the page animates at all.
+- **Bounded resolution.** On high-density screens the canvas is capped at 2x and
+  about 4.5 megapixels. It never drops below the display's own 1x resolution, so a
+  very large 1x window (a 4K monitor at 100%) draws more than that.
 - **No icon library at run time.** The logos are a 42 KB static SVG file.
 
 Measured in headless Chromium at 1512 x 982, 2x (a 14-inch MacBook Pro at default
@@ -63,7 +66,7 @@ not frame times:
 | Shader programs compiled | 30 | 40 | 3 |
 | Frames drawn while idle | every frame | every frame | 0 |
 | Script up front (gzip) | 274 KB | 295 KB | 2.4 KB |
-| Script in total (gzip) | 274 KB | 295 KB | about 162 KB |
+| Script in total (gzip) | 274 KB | 295 KB | about 164 KB |
 | Script downloaded in dev mode | not measured | 22.2 MB | 6.6 MB |
 
 `npm test` enforces these as limits, so a change that brings the cost back fails.
@@ -107,8 +110,9 @@ projects are drops, open-source contributions are collabs, experience is a tour,
 technologies are the kit. Every fact on the page is real.
 
 **Motion.** Quick and deliberate: a slanted wipe between sections, a short camera
-settle, buttons that shift on their shadow. Nothing loops except the tape and the
-slow ring, and `prefers-reduced-motion` turns all of it off.
+settle, the ring turning one step, buttons that shift on their shadow. The only
+thing that loops is the tape on the opening screen, and `prefers-reduced-motion`
+turns all of it off.
 
 ## Where things live
 
@@ -130,16 +134,18 @@ slow ring, and `prefers-reduced-motion` turns all of it off.
 ## Swap a placeholder for a real model
 
 1. Put the file in `public/models/`, for example `public/models/mug.glb`.
-2. In `src/config/scene.config.js`, set that object's `model`:
+2. In `src/config/scene.config.js`, set that object's `model` to its path inside
+   `public/`. The path is read as inside the site's own folder, so it also works
+   when the site is hosted in a sub-folder such as a GitHub Pages project site:
 
    ```js
    { id: 'mug', model: '/models/mug.glb', placeholder: 'mug', fit: 0.13, ... }
    ```
 
 The model is scaled so its largest side equals `fit` (metres), centred, and stood
-on the desk. It is drawn in the site's style: each part keeps its base colour or
-its vertex colours, and gets the outline and flat shadow. **Its textures are not
-used.** A model whose detail lives only in its texture will look plain; that is the
+on the desk. It is drawn in the site's style: each part keeps its base colour
+(multiplied by its vertex colours, if it has them) and gets the outline and flat
+shadow. **Its textures are not used.** A model whose detail lives only in its texture will look plain; that is the
 known limit of this version. If the file cannot be loaded, the placeholder is used.
 
 For a character model, raise `sss` on its entry (for example `sss: 0.8`) to
@@ -161,6 +167,9 @@ strengthen the warm band at the shadow edge.
   1440x900, 1920x1080 and 2560x1080.
 - Below 860 px wide the art sits above the text.
 - All content works with the keyboard, with JavaScript off, and without WebGL.
+- Keyboard focus is a two-colour ring (ink inside, neon outside), so it shows on
+  every background.
+- Text meets WCAG AA contrast against its block; the tests check both.
 - `prefers-reduced-motion` stops every animation.
 
 ## Branches

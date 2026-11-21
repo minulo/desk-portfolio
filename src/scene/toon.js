@@ -87,7 +87,8 @@ void main() {
   vec3 colour = mix(shade, light, max(lit, dots));
 
   // Subsurface look: a warm, saturated band where light meets shadow.
-  float band = exp(-pow((ndl - EDGE) / 0.16, 2.0));
+  float fromEdge = (ndl - EDGE) / 0.16;
+  float band = exp(-fromEdge * fromEdge);
   colour = mix(colour, colour * vec3(1.22, 0.74, 0.66) + vec3(0.09, 0.0, 0.02), band * uSss);
 
   // One hard highlight.

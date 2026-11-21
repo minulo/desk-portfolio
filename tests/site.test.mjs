@@ -80,6 +80,17 @@ describe('in the browser', { skip }, () => {
 
   const sceneReady = (page) => page.waitForSelector('html.scene-ready', { state: 'attached', timeout: 20000 });
   const gl = (page) => page.evaluate(() => ({ ...window.__gl }));
+  const runningAnimations = (page) => page.evaluate(() => document.getAnimations()
+    .filter((a) => a.playState === 'running')
+    .map((a) => `${a.animationName || a.transitionProperty || 'animation'} on ${a.effect?.target?.getAttribute('class') || a.effect?.target?.tagName}`));
+  /**
+   * Wait until the only animations still running are ones `allowed` accepts (none by
+   * default). Fixed waits are not used here: on a busy machine the page's transitions
+   * start late. If something never stops, this times out and the test fails.
+   */
+  const untilSettled = (page, allowedSelector = null) => page.waitForFunction((sel) => document.getAnimations()
+    .filter((a) => a.playState === 'running')
+    .every((a) => sel && a.effect?.target?.closest(sel)), allowedSelector, { timeout: 15000 });
   const goTo = (page, id) => page.evaluate((id) => document.getElementById(id).scrollIntoView({ behavior: 'instant', block: 'start' }), id);
 
   async function visibleHeadings(page) {
@@ -229,8 +240,9 @@ describe('in the browser', { skip }, () => {
 
   test('a model file named in the config replaces that object\'s placeholder', async () => {
     const gltf = await boxGltf();
+    let fetched = 0;
     const useFixture = async (p) => {
-      await p.route('**/__fixture/box.gltf', (route) => route.fulfill({ contentType: 'model/gltf+json', body: gltf }));
+      await p.route('**/__fixture/box.gltf', (route) => { fetched++; return route.fulfill({ contentType: 'model/gltf+json', body: gltf }); });
       await p.route('**/scene.config.js*', async (route) => {
         const response = await route.fetch();
         const original = await response.text();
@@ -242,10 +254,186 @@ describe('in the browser', { skip }, () => {
     await withPage({ viewport: { width: 1280, height: 800 } }, { url: () => dev.url, prepare: useFixture }, async (page, problems) => {
       await sceneReady(page);
       await page.waitForTimeout(500);
+      assert.equal(fetched, 1, 'the model file was requested once');
       assert.equal(await page.evaluate(() => document.getElementById('scene').dataset.models), '1');
       assert.deepEqual(problems, []);
       const { programs } = await gl(page);
       assert.ok(programs <= 6, `${programs} shader programs linked with a model loaded`);
+    });
+  });
+
+  test('while idle away from the intro, nothing on the page is animating', async () => {
+    await withPage(MAC, {}, async (page) => {
+      await sceneReady(page);
+      await goTo(page, 'kit');
+      await untilSettled(page);
+      // ...and it stays that way.
+      await page.waitForTimeout(1500);
+      assert.deepEqual(await runningAnimations(page), []);
+    });
+  });
+
+  test('on the intro, the only thing that keeps moving is the tape', async () => {
+    await withPage(MAC, {}, async (page) => {
+      await sceneReady(page);
+      await untilSettled(page, '.tape');
+      await page.waitForTimeout(1500);
+      const running = await runningAnimations(page);
+      assert.ok(running.length > 0, 'the tape is moving');
+      assert.deepEqual(running.filter((r) => !r.includes('tape')), []);
+    });
+  });
+
+  test('clicking an object on the desk goes to its section', async () => {
+    await withPage({ viewport: { width: 1440, height: 900 } }, {}, async (page) => {
+      await sceneReady(page);
+      await page.waitForTimeout(800);
+      // The monitor stands just below its label.
+      const spot = await page.evaluate(() => {
+        const pin = [...document.querySelectorAll('.pin')].find((el) => el.textContent.includes('Drops'));
+        const r = pin.getBoundingClientRect();
+        return { x: r.left + 20, y: r.bottom + 70 };
+      });
+      await page.mouse.move(spot.x - 60, spot.y + 150);
+      await page.mouse.move(spot.x, spot.y, { steps: 6 });
+      await page.waitForTimeout(500);
+      assert.equal(await page.evaluate(() => document.getElementById('scene').style.cursor), 'pointer', 'the pointer shows the object can be clicked');
+      await page.mouse.click(spot.x, spot.y);
+      await page.waitForTimeout(2500);
+      assert.equal(await page.evaluate(() => document.documentElement.dataset.section), 'drops');
+    });
+  });
+
+  test('tapping an object on a phone goes to its section', async () => {
+    await withPage({ ...playwright.devices['iPhone 13'] }, {}, async (page) => {
+      await sceneReady(page);
+      await page.waitForTimeout(800);
+      await page.touchscreen.tap(215, 180); // the monitor, in the art window at the top
+      await page.waitForFunction(() => document.documentElement.dataset.section === 'drops', null, { timeout: 8000 });
+    });
+  });
+
+  test('with always-visible scrollbars, the canvas is not stretched and objects are still under the pointer', async () => {
+    // Playwright hides scrollbars in headless mode. Windows, Linux and a Mac with a mouse
+    // show them, which makes the page 15 px narrower than the window.
+    const withScrollbars = await playwright.chromium.launch({ args: CHROMIUM_ARGS, ignoreDefaultArgs: ['--hide-scrollbars'] });
+    try {
+      const page = await (await withScrollbars.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
+      await page.goto(preview.url, { waitUntil: 'domcontentloaded' });
+      await sceneReady(page);
+      await page.waitForTimeout(800);
+      const c = await page.evaluate(() => { const el = document.getElementById('scene'); return { w: el.width, h: el.height, cw: el.clientWidth, ch: el.clientHeight, bar: innerWidth - document.documentElement.clientWidth }; });
+      assert.ok(c.bar > 0, 'this browser shows a scrollbar');
+      const stretch = Math.abs((c.w / c.h) / (c.cw / c.ch) - 1);
+      assert.ok(stretch < 0.004, `buffer ${c.w}x${c.h} shown at ${c.cw}x${c.ch}: ${(stretch * 100).toFixed(2)}% stretch`);
+      // The label for the monitor must sit over the monitor: hovering just under it finds the object.
+      const spot = await page.evaluate(() => {
+        const pin = [...document.querySelectorAll('.pin')].find((el) => el.textContent.includes('Drops'));
+        const r = pin.getBoundingClientRect();
+        return { x: r.left + 14, y: r.bottom + 40 };
+      });
+      await page.mouse.move(spot.x - 40, spot.y + 120);
+      await page.mouse.move(spot.x, spot.y, { steps: 5 });
+      await page.waitForTimeout(500);
+      assert.equal(await page.evaluate(() => document.querySelector('.pin.is-hot')?.textContent ?? ''), '02Drops');
+    } finally {
+      await withScrollbars.close();
+    }
+  });
+
+  test('the scene is redrawn after the graphics context is lost and restored', async () => {
+    await withPage({ viewport: { width: 1280, height: 800 } }, {}, async (page) => {
+      await sceneReady(page);
+      await page.waitForTimeout(1200);
+      const before = await gl(page);
+      await page.evaluate(() => {
+        const ext = document.getElementById('scene').getContext('webgl2').getExtension('WEBGL_lose_context');
+        ext.loseContext();
+        setTimeout(() => ext.restoreContext(), 250);
+      });
+      await page.waitForTimeout(2000);
+      const after = await gl(page);
+      assert.ok(after.draws > before.draws, 'nothing was drawn after the context came back');
+    });
+  });
+
+  test('the ?perf readout does not report idle time as a slow frame', async () => {
+    await withPage({ viewport: { width: 1440, height: 900 } }, { url: () => `${preview.url}?perf` }, async (page) => {
+      await sceneReady(page);
+      await page.waitForTimeout(800);
+      // Interrupt one transition with another, sit still, then nudge the pointer.
+      await goTo(page, 'about');
+      await page.waitForTimeout(330);
+      await goTo(page, 'drops');
+      await page.waitForTimeout(5000);
+      await page.mouse.move(1000, 400);
+      await page.mouse.move(1080, 460, { steps: 4 });
+      await page.waitForTimeout(1200);
+      const text = await page.evaluate(() => document.querySelector('pre')?.textContent ?? '');
+      assert.match(text, /slowest frame gap/);
+      const gap = Number(/slowest frame gap in\s+(\d+) ms/.exec(text)?.[1] ?? 0);
+      assert.ok(gap < 1500, `readout says the slowest frame gap was ${gap} ms after 5 idle seconds`);
+    });
+  });
+
+  test('every keyboard focus ring uses two colours that contrast, so it shows on any background', async () => {
+    // Reduced motion switches transitions off, so each ring is read in its final state
+    // instead of part-way through a button's 0.12 s shadow fade.
+    await withPage({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' }, {}, async (page) => {
+      await page.waitForTimeout(800);
+      const stops = await page.evaluate(() => document.querySelectorAll('a[href], button:not([tabindex="-1"])').length);
+      const weak = [];
+      for (let i = 0; i < stops; i++) {
+        await page.keyboard.press('Tab');
+        const ring = await page.evaluate(() => {
+          const el = document.activeElement;
+          const cs = getComputedStyle(el);
+          const rgb = (str) => /rgba?\(([^)]+)\)/.exec(str)?.[1].split(/[,\s/]+/).slice(0, 3).map(Number);
+          const lum = (c) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
+          const outline = cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) >= 2 ? rgb(cs.outlineColor) : null;
+          const shadow = cs.boxShadow !== 'none' ? rgb(cs.boxShadow) : null;
+          let ratio = 0;
+          if (outline && shadow) { const [hi, lo] = [lum(outline), lum(shadow)].sort((a, b) => b - a); ratio = (hi + 0.05) / (lo + 0.05); }
+          return { what: `${el.tagName}.${el.className} "${el.textContent.trim().slice(0, 24)}"`, ratio };
+        });
+        if (ring.ratio < 9) weak.push(`${ring.what}: ${ring.ratio.toFixed(1)}:1`);
+      }
+      assert.ok(stops > 20, `only ${stops} focus stops found`);
+      assert.deepEqual(weak.slice(0, 6), []);
+    });
+  });
+
+  test('all text meets the WCAG AA contrast ratio against its block', async () => {
+    await withPage({ viewport: { width: 1440, height: 900 } }, {}, async (page) => {
+      await page.waitForTimeout(800);
+      const failures = await page.evaluate(() => {
+        const parse = (str) => { const p = /rgba?\(([^)]+)\)/.exec(str)[1].split(/[,\s/]+/).map(Number); return { rgb: p.slice(0, 3), a: p[3] ?? 1 }; };
+        const lum = (c) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
+        const out = [];
+        for (const el of document.querySelectorAll('main .block *')) {
+          const own = [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim());
+          if (!own || el.closest('[aria-hidden="true"]')) continue;
+          const cs = getComputedStyle(el);
+          const fg = parse(cs.color);
+          let alpha = fg.a;
+          let bg = null;
+          for (let n = el; n; n = n.parentElement) {
+            const ns = getComputedStyle(n);
+            alpha *= parseFloat(ns.opacity);
+            if (!bg) { const b = parse(ns.backgroundColor); if (b.a > 0.99) bg = b.rgb; }
+            if (n.classList.contains('block')) break;
+          }
+          if (!bg) continue;
+          const seen = fg.rgb.map((v, i) => v * alpha + bg[i] * (1 - alpha));
+          const [hi, lo] = [lum(seen), lum(bg)].sort((a, b) => b - a);
+          const ratio = (hi + 0.05) / (lo + 0.05);
+          const size = parseFloat(cs.fontSize);
+          const large = size >= 24 || (size >= 18.66 && Number(cs.fontWeight) >= 700);
+          if (ratio < (large ? 3 : 4.5)) out.push(`${el.tagName}.${el.className} "${el.textContent.trim().slice(0, 22)}" ${ratio.toFixed(2)}:1 (needs ${large ? 3 : 4.5})`);
+        }
+        return [...new Set(out)];
+      });
+      assert.deepEqual(failures.slice(0, 12), []);
     });
   });
 
@@ -306,9 +494,19 @@ describe('in the browser', { skip }, () => {
 
   test('with reduced motion, no animation is running', async () => {
     await withPage({ viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' }, {}, async (page) => {
-      await page.waitForTimeout(2500);
-      const running = await page.evaluate(() => document.getAnimations().filter((a) => a.playState === 'running').map((a) => a.animationName || a.constructor.name));
-      assert.deepEqual(running, []);
+      await sceneReady(page);
+      await page.waitForTimeout(1500);
+      assert.deepEqual(await runningAnimations(page), []);
+      // A section change must still happen, just without movement.
+      const before = await gl(page);
+      await goTo(page, 'drops');
+      await page.waitForFunction(() => document.getElementById('scene').dataset.shown === 'drops', null, { timeout: 10000 });
+      assert.deepEqual(await runningAnimations(page), []);
+      await page.waitForTimeout(600);
+      const state = await page.evaluate(() => ({ art: document.documentElement.dataset.art, scene: document.getElementById('scene').dataset.shown }));
+      assert.deepEqual(state, { art: 'drops', scene: 'drops' });
+      const frames = (await gl(page)).frames - before.frames;
+      assert.ok(frames >= 1 && frames <= 3, `${frames} frames drawn for a section change with reduced motion`);
     });
   });
 });

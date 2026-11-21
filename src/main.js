@@ -17,8 +17,10 @@ let scene = null;     // set once the 3D scene has loaded
 
 /** The part of the screen the art shows through, in CSS pixels. Mirrors the layout in CSS. */
 function artRect(side) {
-  const W = window.innerWidth;
-  const H = window.innerHeight;
+  // The art layer's displayed size (narrower than the window when a scrollbar shows).
+  const art = document.getElementById('scene');
+  const W = art.clientWidth || window.innerWidth;
+  const H = art.clientHeight || window.innerHeight;
   if (narrow.matches) {
     const bar = parseFloat(getComputedStyle(html).getPropertyValue('--bar')) || 58;
     return { x: 0, y: bar, width: W, height: H * 0.42 };
@@ -44,6 +46,7 @@ function applyArt(i, animate = true) {
   html.dataset.accent = s.dataset.accent;
   html.dataset.side = s.dataset.side;
   word.textContent = s.dataset.word;
+  html.style.setProperty('--turn', `${i * 40}deg`); // the ring clicks round one step
   showInScene(animate);
 }
 

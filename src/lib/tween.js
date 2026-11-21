@@ -31,3 +31,27 @@ export function runTween({
   raf(step);
   return () => { cancelled = true; };
 }
+
+/**
+ * Runs tweens and knows how many are still going. A tween stops counting when it
+ * finishes or when it is cancelled, whichever comes first, and never twice.
+ *
+ * @returns {{ run(options: object): () => void, readonly active: number }}
+ */
+export function createTweenTracker(clock = {}) {
+  let active = 0;
+  return {
+    get active() { return active; },
+    run(options) {
+      let counted = true;
+      const release = () => {
+        if (!counted) return;
+        counted = false;
+        active--;
+      };
+      active++;
+      const cancel = runTween({ ...clock, ...options, onDone: () => { release(); options.onDone?.(); } });
+      return () => { cancel(); release(); };
+    },
+  };
+}

@@ -55,3 +55,14 @@ test('the résumé the page links to is in the repository', () => {
   assert.ok(href, 'the page links to a PDF of its own');
   assert.ok(existsSync(path.join(ROOT, 'public', href)), `public/${href} exists`);
 });
+
+test('every icon is hidden from screen readers (the word beside it is the label)', () => {
+  const svgs = tags('svg');
+  assert.ok(svgs.length > 20, 'the page has icons');
+  assert.deepEqual(svgs.filter((t) => attr(t, 'aria-hidden') !== 'true'), []);
+});
+
+test('the shaders never call pow(), whose result is undefined for a negative base', () => {
+  const src = readFileSync(path.join(ROOT, 'src', 'scene', 'toon.js'), 'utf8');
+  assert.equal((src.match(/\bpow\s*\(/g) ?? []).length, 0);
+});

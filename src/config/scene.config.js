@@ -4,8 +4,8 @@
  *
  * objects — what stands on the desk
  *   id          unique name
- *   model       path to a .glb or .gltf under /public (for example '/models/mug.glb'),
- *               or null to use the built-in placeholder
+ *   model       path to a .glb or .gltf inside public/ (for example '/models/mug.glb',
+ *               read as inside the site's own folder), or null to use the placeholder
  *   placeholder name of a builder in src/scene/objects.js
  *   fit         size in metres: the object is scaled so its largest side equals this
  *   position    [x, y, z] where its base sits (the desk top is y = DESK_TOP)

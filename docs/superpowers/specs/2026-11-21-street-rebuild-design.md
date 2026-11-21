@@ -93,7 +93,8 @@ opaque colour-blocked content panel on one side and an "art window" on the
 other. Text is real HTML and complete without JavaScript.
 
 **Art layer.** Fixed behind the content: a flat colour field, a huge outlined
-word, a rotating sigil ring, and the transparent 3D canvas on top of those.
+word, a sigil ring that turns one step per section (changed after review: it no
+longer spins on its own), and the transparent 3D canvas on top of those.
 When the active section changes, a slanted block wipes across the art layer;
 at its midpoint the field colour, word and camera framing switch. The camera
 cuts instead of flying, so a section change costs a handful of frames.
