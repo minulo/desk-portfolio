@@ -27,7 +27,7 @@ export const objects = [
   { id: 'monitor', model: null, placeholder: 'monitor', fit: 0.62, position: [0.02, DESK_TOP, -0.2], rotationY: -4, section: 'drops', gloss: 0.4 },
   { id: 'keyboard', model: null, placeholder: 'keyboard', fit: 0.44, position: [-0.02, DESK_TOP, 0.17], rotationY: 3, section: 'kit' },
   { id: 'mug', model: null, placeholder: 'mug', fit: 0.13, position: [0.5, DESK_TOP, 0.15], rotationY: -35, section: 'about', gloss: 0.7 },
-  { id: 'phone', model: null, placeholder: 'phone', fit: 0.16, position: [-0.5, DESK_TOP, 0.2], rotationY: 24, section: 'contact', gloss: 0.5 },
+  { id: 'phone', model: null, placeholder: 'phone', fit: 0.16, position: [-0.5, DESK_TOP, 0.2], rotationY: -8, section: 'contact', gloss: 0.5 },
   { id: 'cone', model: null, placeholder: 'cone', fit: 0.22, position: [-0.56, DESK_TOP, -0.2], rotationY: 12, section: 'tour' },
   { id: 'can', model: null, placeholder: 'can', fit: 0.19, position: [0.6, DESK_TOP, -0.24], rotationY: 0, gloss: 0.8 },
 ];
@@ -38,5 +38,5 @@ export const views = {
   drops: { camera: [0.75, 1.22, 1.55], target: [0.02, 1.0, -0.2] },
   tour: { camera: [-1.35, 1.2, 0.75], target: [-0.56, 0.86, -0.2] },
   kit: { camera: [0.55, 1.42, 1.25], target: [-0.02, 0.78, 0.17] },
-  contact: { camera: [-1.02, 1.02, 0.92], target: [-0.5, 0.78, 0.2] },
+  contact: { camera: [-0.92, 0.98, 0.98], target: [-0.5, 0.84, 0.2] },
 };

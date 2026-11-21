@@ -1,9 +1,7 @@
-# Minh Nguyen — "After hours"
+# Minh Nguyen — portfolio
 
-A portfolio site where scrolling moves a camera across a desk at night, written
-like a text-first RPG. A swarm of light particles ("the daemon") follows the
-visitor from object to object and forms the logos of the technologies used in
-each chapter. Clickable objects carry a faint enchantment glint.
+A fast, street-styled portfolio: colour-blocked panels, big type, hazard tape and
+stickers, with a cel-shaded 3D desk whose objects lead to the sections.
 
 ![Intro](docs/screenshots/01-intro.jpg)
 
@@ -17,156 +15,172 @@ npm install
 npm run dev
 ```
 
-Other scripts: `npm run build` writes the static site to `dist/`, and
-`npm run preview` serves that build locally.
+| Script | What it does |
+|---|---|
+| `npm run dev` | Dev server |
+| `npm run build` | Writes the static site to `dist/` |
+| `npm run preview` | Serves the built site |
+| `npm test` | Runs the tests (builds first; browser tests need Playwright) |
+| `npm run icons` | Regenerates `public/icons.svg` after changing the logo list |
 
 Vite 8.3.6 requires Node `^20.19.0 || >=22.12.0` (from its `package.json`).
-Built and tested with Node 22.23.4, three 0.187.0, gsap 3.15.1, lenis 1.3.27 and
-simple-icons 16.37.0.
+Built and tested with Node 22.23.4 and three 0.187.0.
+
+## Check the speed on your own machine
+
+Open the site with `?perf` added to the address, for example
+`http://localhost:5173/?perf`. A small readout shows when the first text appeared,
+when the 3D scene was ready, how many frames have been drawn, and the slowest frame
+during the last transition (16.7 ms is 60 fps).
+
+## How it stays fast
+
+The previous versions were slow for two measured reasons: a post-processing chain
+that redrew a Retina-sized canvas 18 to 27 times per frame and never stopped
+drawing, and a 13 MB icon library downloaded in dev mode. This version is built
+around not doing that work.
+
+- **Text first.** All content is plain HTML and CSS. It is on screen before any
+  script runs: about 4 KB of HTML, 5 KB of CSS and 2 KB of script, compressed.
+- **3D afterwards.** three.js is a separate download that starts once the page is
+  up. If it fails, or the browser has no WebGL, the page is still complete.
+- **One pass.** The scene is drawn with three small shaders and no
+  post-processing, shadow maps or textures.
+- **Only when something changes.** A frame is drawn on a section change, a hover,
+  a pointer move or a resize. Sitting still, the page draws nothing.
+- **Bounded resolution.** The canvas is capped at 4.5 megapixels and 2x.
+- **No icon library at run time.** The logos are a 42 KB static SVG file.
+
+Measured in headless Chromium at 1512 x 982, 2x (a 14-inch MacBook Pro at default
+scaling). The test machine has no GPU, so these count the work asked of the GPU,
+not frame times:
+
+| | `main` | `rpg-theme` | this branch |
+|---|---|---|---|
+| Render passes per frame | 18 | 27 | 1 |
+| Megapixels shaded per frame | 23.9 | 51.3 | 4.5 |
+| Draw calls per frame | 64 | 141 | 21 |
+| Shader programs compiled | 30 | 40 | 3 |
+| Frames drawn while idle | every frame | every frame | 0 |
+| Script up front (gzip) | 274 KB | 295 KB | 2.4 KB |
+| Script in total (gzip) | 274 KB | 295 KB | about 162 KB |
+| Script downloaded in dev mode | not measured | 22.2 MB | 6.6 MB |
+
+`npm test` enforces these as limits, so a change that brings the cost back fails.
+
+## Theme rules
+
+Urban street poster with a retro-futuristic edge. Keep these and new work will match.
+
+**Colour.** Stark neutrals plus a few loud accents, all defined in
+`src/styles/tokens.css`.
+
+| Token | Use |
+|---|---|
+| `--ink` `#0b0b0c`, `--paper` `#f2efe6` | The two neutrals. Most of every screen |
+| `--yellow` `#ffd400` | Hazard yellow: the lead accent, tape, highlights on ink |
+| `--magenta` `#ff2e88` | Electric magenta: second accent, highlights on paper |
+| `--crimson` `#c81e36` | One block only (Tour) |
+| `--lime` `#b6ff3c` | Neon: keyboard focus and hover outlines, nothing else |
+
+Colour is used in flat blocks with hard edges. No gradients, glows, blurs or soft
+shadows. Shadows are solid offsets. One accent leads each section.
+
+**Type.**
+
+| Font | Use |
+|---|---|
+| Anton | Headlines, upper case, tight |
+| Chakra Petch | Labels, numbers, buttons, anything small and upper case |
+| Space Grotesk | Sentences |
+
+**Shapes.** Slanted block edges, 3 px ink borders, stickers a degree or two off
+level, hazard stripes for emphasis.
+
+**3D.** Clean ink outlines of a fixed pixel width; two flat tones per colour with a
+hard edge and halftone dots where they meet; bounce light tinted by the section's
+colour; a warm band at the edge of the shadow (the subsurface look); one hard
+highlight; flat shadows. On the black sections the lines switch to neon.
+
+**Words.** Short and plain. Streetwear terms only where they name a real thing:
+projects are drops, open-source contributions are collabs, experience is a tour,
+technologies are the kit. Every fact on the page is real.
+
+**Motion.** Quick and deliberate: a slanted wipe between sections, a short camera
+settle, buttons that shift on their shadow. Nothing loops except the tape and the
+slow ring, and `prefers-reduced-motion` turns all of it off.
 
 ## Where things live
 
 | File | What it holds |
 |---|---|
-| `index.html` | All the words: name, voices, quests, roles, links |
-| `src/config/scene.config.js` | Objects, camera stops, and which technologies the swarm shows at each stop |
-| `src/config/tech.js` | The technologies the swarm can form (logo or text) |
-| `src/style.css` | Colours, type and layout. Theme colours are the variables at the top |
-| `src/scene/stage.js` | Room, window, lamp, lights, outline and bloom |
-| `src/scene/swarm.js`, `shapes.js` | The particle swarm and the shapes it can form |
-| `src/scene/enchant.js` | The glint on clickable objects |
-| `src/scene/loader.js` | The single loader for placeholders and `.glb` models |
-| `src/scene/placeholders.js` | Stand-in shapes used until real models exist |
-| `src/scroll.js` | Scroll position → camera path, active section |
-| `src/interact.js` | Pointer and touch: hover, click, camera drift, swarm reaction |
-| `src/check.js` | The dice roll shown when something is inspected |
-| `src/reveal.js` | Text reveals |
-
-## Theme guide
-
-Keep these rules and new work will match what is there.
-
-**The idea.** It is late, the lamp is on, and the page reads like a text-first
-RPG played at a developer's desk. Fantasy role-playing conventions, said in
-computer-science words.
-
-**Type.**
-- Serif (Fraunces) is the narrator: headings and italic scene-setting lines.
-- Sans (Inter) is plain speech: the sentences a visitor actually reads.
-- Mono (JetBrains Mono) is the machine: labels, voice names, checks, dates,
-  anything that looks like output.
-
-**Colour.**
-- Two accents only: warm `--warm` (the lamp) and cool `--cool` (the screen).
-  Gradients run warm to cool.
-- Violet `--ench` means "clickable" and nothing else.
-- The six pastel voice colours are used only for voice names and their rules.
-- No other colours. Technology logos are drawn in the swarm's warm-to-cool
-  light, never in brand colours.
-
-**Voices.** Facts are spoken by inner voices named after parts of a computer.
-Use the voice that fits what is being said:
-
-| Voice | Speaks about |
-|---|---|
-| Kernel | Who I am, in plain terms |
-| Cache | Memory: what I have done before |
-| Compiler | Strict, checkable facts: degrees, titles, numbers |
-| Scheduler | What is running now and what is next |
-| Linter | Taste and detail (unused so far) |
-| Socket | Connection: how to reach me |
-
-A line with no voice, in italic serif, is the narrator setting the scene.
-
-**Words.**
-- Sections are scenes. Projects are quests (`done`), open-source work is side
-  quests, navigation links are numbered dialogue options phrased as actions
-  ("Read the monitor.").
-- Inspecting something rolls a d20, shown as one line of terminal output. It is
-  flavour: the action always happens, whatever the dice say.
-- The swarm is "the daemon". Its label names the technology it is showing.
-- The role-playing layer is a frame. Every fact inside it is real and stated
-  plainly; nothing is invented for flavour.
-
-**Clickable things.**
-- 3D objects: a faint glint drifts over them all the time. On desktop they also
-  have a soft pulsing outline; under the pointer the outline and glint brighten
-  and an "inspect" label appears.
-- HTML controls use the `ench` class: a slow band of light crosses them, and
-  hover or keyboard focus adds a violet outline.
-- Nothing else in the scene glints or is outlined.
-
-## Change the technologies the swarm shows
-
-Each stop in `src/config/scene.config.js` lists technologies by key:
-
-```js
-swarm: { tech: ['python', 'go', 'typescript', 'rust'], at: [0.5, 1.03, 0.14], size: 0.075 }
-```
-
-The swarm forms each one in turn, changing every few seconds. Keys come from
-`src/config/tech.js`. To add one, import its icon from `simple-icons` there and
-add an entry. A technology with no icon in that package (Juju and LinkedIn at
-the time of writing) is spelled out as text instead.
+| `index.html` | All the content |
+| `src/styles/` | `tokens.css` (palette and fonts), `base.css`, `art.css` (the fixed art layer), `layout.css`, `components.css` |
+| `src/main.js` | Active section, art-layer switch, lazy start of the scene |
+| `src/config/scene.config.js` | Objects on the desk and how each section frames them |
+| `src/scene/scene.js` | Renderer, camera, hover and click, drawing on demand |
+| `src/scene/toon.js` | The three shaders: toon, outline, flat shadow |
+| `src/scene/objects.js` | The stand-in objects |
+| `src/scene/loader.js` | Turns a config entry into geometry, from a placeholder or a model file |
+| `src/lib/` | Small pure functions, unit tested |
+| `scripts/build-icons.mjs` | Generates `public/icons.svg` |
+| `tests/` | Unit, content and browser tests |
+| `docs/superpowers/` | The design and plan for this rebuild |
 
 ## Swap a placeholder for a real model
 
-1. Put the compressed file in `public/models/`, for example `public/models/mug.glb`.
+1. Put the file in `public/models/`, for example `public/models/mug.glb`.
 2. In `src/config/scene.config.js`, set that object's `model`:
 
    ```js
-   { id: 'mug', model: '/models/mug.glb', placeholder: 'mug', fit: 0.12, ... }
+   { id: 'mug', model: '/models/mug.glb', placeholder: 'mug', fit: 0.13, ... }
    ```
 
-The loader rescales the model so its largest side equals `fit` (metres), centres
-it and stands it on the desk. If the file fails to load, the placeholder is used
-instead. The glint and outline work on any model without changes. Models
-compressed with `npx @gltf-transform/cli optimize` load as they are: that tool's
-default geometry compression is meshopt (checked against version 4.5.1), and the
-loader registers the matching decoder.
+The model is scaled so its largest side equals `fit` (metres), centred, and stood
+on the desk. It is drawn in the site's style: each part keeps its base colour or
+its vertex colours, and gets the outline and flat shadow. **Its textures are not
+used.** A model whose detail lives only in its texture will look plain; that is the
+known limit of this version. If the file cannot be loaded, the placeholder is used.
 
-## Add a new object
+For a character model, raise `sss` on its entry (for example `sss: 0.8`) to
+strengthen the warm band at the shadow edge.
 
-1. Add an entry to `objects` in `scene.config.js` (`id`, `model`, `placeholder`,
-   `fit`, `position`, `rotationY`). With no model yet, add a builder of the same
-   name to `src/scene/placeholders.js`.
-2. Add an entry to `stops` with the camera position, the point it looks at, the
-   text side, and a `swarm` list. An object named in a stop becomes clickable.
-3. Add a matching `<section data-stop="..." data-label="..." data-object="...">`
-   to `index.html`, a dot in the `<nav class="dots">` list, and the new name in
-   the dot-highlight rule in `src/style.css`.
+## Add an object or a section
+
+1. Add an entry to `objects` in `scene.config.js`. Give it `section` to make it
+   clickable. With no model, add a builder of the same name to `src/scene/objects.js`.
+2. For a new section, add a `<section>` to `index.html` with `id`, `data-accent`
+   (`yellow`, `magenta`, `paper` or `ink`), `data-side` (`left` or `right`: where the
+   art shows), `data-word` (the giant word) and `data-focus`; add it to the menu and
+   to the menu-highlight rule in `layout.css`; and add a view with the same id to
+   `views` in `scene.config.js`.
 
 ## Screens and accessibility
 
-Checked in headless Chromium at 360×640, 390×844, 768×1024, 1024×768, 1280×720,
-1366×768, 1440×900, 1920×1080 and 2560×1080: the active section's text fits on
-screen at every stop tested, with no sideways scrolling.
+- Tested for fit at 360x640, 390x844, 768x1024, 1024x768, 1280x720, 1366x768,
+  1440x900, 1920x1080 and 2560x1080.
+- Below 860 px wide the art sits above the text.
+- All content works with the keyboard, with JavaScript off, and without WebGL.
+- `prefers-reduced-motion` stops every animation.
 
-- **Desktop:** full scene with bloom, outlines, shadows, smooth scrolling and
-  pointer effects.
-- **Phones and small tablets:** the scene sits above the text, with fewer
-  particles and no shadows, bloom or outlines. Objects can be tapped.
-- **`prefers-reduced-motion`:** the camera jumps between stops, the swarm and
-  glint stand still, and text appears without animation.
-- **Keyboard:** every destination is a focusable link; the dialogue options do
-  what clicking the objects does.
-- **No WebGL:** the page falls back to plain, readable HTML.
-- **Slow frame rates:** resolution drops in steps, then the idle outline is
-  switched off, then bloom. Add `?q=high` to the address to pin full quality.
+## Branches
 
-## 3D models: status
+| Branch | What it is |
+|---|---|
+| `street` | This version |
+| `main`, `after-hours-v1` | The night desk with the particle swarm |
+| `rpg-theme` | The night desk with the RPG-log layer |
 
-All objects are still placeholders. The planned cloud GPU session never ran: the
-credit expired before a provider was confirmed, so nothing was created and
-nothing was spent (see `COSTS.md`). The remaining route is a free hosted
-image-to-3D demo, then `gltf-transform optimize`, then the swap described above.
-Source photos go in `assets/source/`: one object per photo, three-quarter view,
-plain background, soft even light.
+## Not done
+
+- The desk objects are stand-ins. No AI-generated models exist yet: the cloud GPU
+  session never ran and nothing was spent (see `COSTS.md`).
+- No characters, so the subsurface term is only visible as a subtle band on objects.
+- Real frame rates on a real GPU have not been measured; use `?perf`.
+- Not deployed anywhere.
 
 ## Licences of what is bundled
 
-three (MIT), lenis (MIT), Fraunces, Inter and JetBrains Mono via Fontsource
-(OFL-1.1), GSAP under its standard "no charge" licence
-(https://gsap.com/standard-license), and logo outlines from simple-icons
-(CC0-1.0 data; the logos themselves remain trademarks of their owners and are
-used here only to name technologies).
+three (MIT); Anton, Chakra Petch and Space Grotesk via Fontsource (OFL-1.1); logo
+outlines from simple-icons (CC0-1.0 data; the logos remain trademarks of their
+owners and are used here only to name technologies).

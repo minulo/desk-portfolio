@@ -139,3 +139,30 @@ test('smoothNormals keeps a usable normal when the shared normals cancel out', (
     assert.ok(near(len, 1), `normal at offset ${o} has length ${len}`);
   }
 });
+
+// ---------- renderScale ----------
+import { renderScale } from '../src/lib/render-scale.js';
+
+test('renderScale keeps a Retina laptop canvas within the pixel budget', () => {
+  const scale = renderScale(1512, 982, 2);
+  assert.ok(scale > 1.5 && scale < 2, `scale ${scale}`);
+  assert.ok(1512 * 982 * scale * scale <= 4.5e6 * 1.001, `${(1512 * 982 * scale * scale / 1e6).toFixed(2)} megapixels`);
+});
+
+test('renderScale never renders above the display\'s own pixel ratio', () => {
+  assert.equal(renderScale(1280, 720, 1), 1);
+});
+
+test('renderScale caps a phone\'s 3x display at 2x', () => {
+  assert.equal(renderScale(390, 844, 3), 2);
+});
+
+test('renderScale never drops below one device pixel per CSS pixel, even on a huge window', () => {
+  assert.equal(renderScale(3840, 2160, 1), 1);
+  assert.equal(renderScale(3840, 2160, 2), 1);
+});
+
+test('renderScale copes with a missing or zero-sized window', () => {
+  assert.equal(renderScale(0, 0, 2), 2);
+  assert.equal(renderScale(800, 600, undefined), 1);
+});

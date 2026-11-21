@@ -7,6 +7,7 @@ import { desk } from './objects.js';
 import { hexToRgb } from './geometry.js';
 import { artWindowOffset } from '../lib/view-offset.js';
 import { runTween } from '../lib/tween.js';
+import { renderScale } from '../lib/render-scale.js';
 
 /**
  * The 3D desk. One render pass, three small shaders, and no frame is drawn unless
@@ -139,7 +140,7 @@ export async function createScene({ canvas, pinLayer, objects, views, deskTop, l
   }
 
   function resize() {
-    const ratio = Math.min(window.devicePixelRatio || 1, 2);
+    const ratio = renderScale(window.innerWidth, window.innerHeight, window.devicePixelRatio);
     renderer.setPixelRatio(ratio);
     renderer.setSize(window.innerWidth, window.innerHeight, false);
     shared.uResolution.value.set(canvas.width, canvas.height);

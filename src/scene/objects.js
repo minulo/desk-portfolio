@@ -64,13 +64,17 @@ function mug() {
 }
 
 function phone() {
-  return combine([
+  // Built lying flat, then tipped up to lean on a small stand so its screen faces the camera.
+  const lean = (70 * Math.PI) / 180;
+  const flat = [
     box(0.078, 0.01, 0.158, 0, 0.005, 0, INK),
     box(0.068, 0.002, 0.146, 0, 0.0105, 0, 0x24124a, { flat: true }),   // screen
     box(0.05, 0.002, 0.03, 0, 0.0112, -0.035, MAGENTA, { flat: true }), // incoming call
     box(0.016, 0.002, 0.016, -0.016, 0.0112, 0.04, CRIMSON, { flat: true }),
     box(0.016, 0.002, 0.016, 0.016, 0.0112, 0.04, LIME, { flat: true }),
-  ]);
+  ].map((part) => part.rotateX(lean));
+  const stand = box(0.05, 0.062, 0.04, 0, -0.044, -0.042, INK);
+  return combine([...flat, stand]);
 }
 
 function cone() {
