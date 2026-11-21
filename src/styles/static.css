@@ -73,6 +73,121 @@ html[data-world='static'] body::after {
   background: repeating-linear-gradient(0deg, rgba(4, 4, 5, 0.34) 0 1px, transparent 1px 3px);
 }
 
+/* ---------- the break ---------- */
+/* Static is a cracked screen. Straight cracks run from one point of impact; the screen
+   and the picture on it are cut along them into rigid pieces that sit a little apart,
+   with the channel's light showing in the gaps. Clean cuts, the same every time: damage
+   that has plainly been drawn. The pieces are placed by the script (main.js), from the
+   same pattern the 3D scene uses (src/lib/fracture.js). */
+.shards, .cracks, .impact { display: none; }
+
+/* The whole screen steps aside for its pieces. */
+html[data-world='static'] .art-set > .screen,
+html[data-world='static'] .art-set > .osd { visibility: hidden; }
+
+html[data-world='static'] .shards {
+  display: block;
+  position: absolute;
+  left: var(--art-x);
+  top: var(--art-y);
+  width: calc(var(--art-view) * 0.9);
+  height: calc(var(--art-view) * 0.78);
+  translate: -50% -50%;
+  pointer-events: none;
+}
+/* The light behind the cracks: a plate the size of the screen, seen only between pieces. */
+.shards::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--screen-w);
+  aspect-ratio: 4 / 3;
+  transform: translate(-50%, -50%) rotate(-2deg);
+  background: var(--accent);
+  box-shadow: 0 0 34px color-mix(in srgb, var(--accent) 70%, transparent);
+}
+/* One piece: a full copy of the screen, cut down to its wedge, moved and turned. */
+.shard {
+  position: absolute;
+  inset: 0;
+  transform:
+    translate(calc(var(--dx, 0px) * var(--apart, 1)), calc(var(--dy, 0px) * var(--apart, 1)))
+    rotate(calc(var(--turn, 0deg) * var(--apart, 1)));
+  transition: transform 0.42s var(--boing);
+}
+.art.is-mended .shard { transition: none; }
+.shard > .screen, .shard > .osd { left: 50%; top: 50%; }
+
+/* The cracks themselves, across the whole page: thin, straight, in the channel's colour. */
+html[data-world='static'] .cracks {
+  display: block;
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 21;
+  pointer-events: none;
+}
+.cracks line { stroke: var(--accent); stroke-width: 1.5; opacity: 0.42; }
+/* Where it was hit: a ring and a cross, like a registration mark. */
+html[data-world='static'] .impact {
+  display: block;
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
+  border: 2px solid var(--paper);
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--ink), 0 0 14px var(--accent);
+  pointer-events: none;
+  background:
+    linear-gradient(var(--paper), var(--paper)) center / 2px 34px no-repeat,
+    linear-gradient(var(--paper), var(--paper)) center / 34px 2px no-repeat;
+  background-clip: border-box;
+  overflow: visible;
+}
+
+/* Headlines break into their words: each a rigid piece, knocked out of line, with a
+   corner gone. The corner lies just below, so it reads as broken off, not cut off. */
+html[data-world='static'] :is(h1, h2) { position: relative; }
+html[data-world='static'] :is(h1, h2) > span {
+  display: inline-block;
+  width: fit-content;
+  /* Room for the tops of the letters and the italic's lean, which the cut would take off. */
+  padding: 0.1em 0.1em 0.04em;
+  margin: -0.1em -0.1em -0.04em;
+}
+html[data-world='static'] h1 > span { display: block; }
+html[data-world='static'] :is(h1, h2) > span:nth-child(odd) {
+  rotate: -1.7deg;
+  translate: -0.04em -0.02em;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 0.46em 100%, 0 60%);
+}
+html[data-world='static'] :is(h1, h2) > span:nth-child(even) {
+  rotate: 1.3deg;
+  translate: 0.08em 0.05em;
+  clip-path: polygon(0 0, calc(100% - 0.4em) 0, 100% 36%, 100% 100%, 0 100%);
+}
+html[data-world='static'] :is(h1, h2)::after {
+  content: '';
+  position: absolute;
+  left: -0.3em;
+  bottom: -0.34em;
+  width: 0.36em;
+  height: 0.27em;
+  background: var(--paper);
+  clip-path: polygon(0 0, 100% 68%, 18% 100%);
+  rotate: 16deg;
+}
+/* Cards sit a little out of true, like tiles that have shifted. */
+html[data-world='static'] :is(.drop, .speech, .notice):nth-of-type(odd) { rotate: -0.6deg; }
+html[data-world='static'] :is(.drop, .speech, .notice):nth-of-type(even) { rotate: 0.5deg; translate: 5px 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .shard { transition: none; }
+}
+
 /* ---------- telling a mode from a fault ---------- */
 /* The note: a strip of paper tape stuck over the picture. It sits above the scanlines
    and is the one clean, level-headed thing on the page, which is how a visitor can tell

@@ -28,7 +28,10 @@
           <span class="osd-channel" id="osd-channel">CH 00 <b>ON AIR</b></span>
           <span class="osd-code" id="osd-code">MN-00 &middot; 0:00:00</span>
         </div>
+        <!-- Static mode: the screen above, cut into pieces. Filled in by the script. -->
+        <div class="shards" id="shards"></div>
         <canvas id="scene"></canvas>
+        <i class="impact" id="impact"></i>
         <i class="art-probe" id="art-probe"></i>
       </div>
       <div class="art-tags" id="art-tags"></div>
@@ -56,6 +59,8 @@
     </div>
     <p class="sr-only" id="world-status" role="status"></p>
     <div class="sweep" id="sweep" aria-hidden="true"></div>
+    <!-- Static mode: the cracks, drawn across the whole page from the point of impact. -->
+    <svg class="cracks" id="cracks" aria-hidden="true" focusable="false"></svg>
 
     <main>
       <!-- ============ INTRO ============ -->
@@ -92,7 +97,7 @@
         <div class="window"></div>
         <div class="block block--paper">
           <p class="label"><span class="num">CH 01</span>Who</p>
-          <h2>Who's at <span class="hl nb">the desk</span></h2>
+          <h2><span>Who's at</span> <span class="hl nb">the desk</span></h2>
           <blockquote class="speech"><p>I'm a software engineer focused on building fast, accessible frontend experiences and dependable backend systems.</p></blockquote>
           <p>I've worked across startups, big tech, and research labs, turning ideas into production features and collaborating with teams to build inclusive, polished products.</p>
           <div class="notice">
@@ -117,7 +122,7 @@
       <section id="drops" data-accent="magenta" data-channel="02" data-name="Drops" data-side="right" data-word="DROPS">
         <div class="block block--char">
           <p class="label"><span class="num">CH 02</span>Drops</p>
-          <h2>The <span class="hl">drops</span></h2>
+          <h2><span>The</span> <span class="hl">drops</span></h2>
           <ol class="drops">
             <li>
               <a class="drop" href="https://melcourses.com" rel="noopener">
@@ -165,7 +170,7 @@
         <div class="window"></div>
         <div class="block block--black">
           <p class="label"><span class="num">CH 03</span>Tour</p>
-          <h2>On <span class="hl">tour</span></h2>
+          <h2><span>On</span> <span class="hl">tour</span></h2>
           <ol class="tour">
             <li class="is-now"><time>2026.06 — now</time><b>Associate Software Engineer</b><span>Canonical</span><i>Remote</i></li>
             <li class="is-now"><time>2026.05 — now</time><b>Research Assistant</b><span>Inter.play Lab · University of Rochester</span><i>Rochester, NY</i></li>
@@ -193,7 +198,7 @@
       <section id="kit" data-accent="acid" data-channel="04" data-name="Kit" data-side="right" data-word="KIT">
         <div class="block block--paper">
           <p class="label"><span class="num">CH 04</span>Kit</p>
-          <h2>The <span class="hl">kit</span></h2>
+          <h2><span>The</span> <span class="hl">kit</span></h2>
           <div class="kit">
             <h3>Languages</h3>
             <ul class="stickers">
@@ -257,7 +262,7 @@
         <div class="window"></div>
         <div class="block block--char">
           <p class="label"><span class="num">CH 05</span>Hotline</p>
-          <h2>Hot<span class="hl">line</span></h2>
+          <h2><span>Hot</span><span class="hl">line</span></h2>
           <p class="lede">Email is the fastest way to reach me.</p>
           <a class="mail" href="mailto:mnguyen31@u.rochester.edu">mnguyen31@<wbr />u.rochester.edu</a>
           <ul class="lines">

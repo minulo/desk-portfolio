@@ -63,24 +63,42 @@ view only; a featured object answers a click with a squash and stretch.
 
 ## Telling a mode from a fault (added after Minh's first look)
 
-Minh's note: make it clear the corrupted version is corrupted on purpose, "so visitors
-don't think it is a visual bug", without just saying so: "strike a balance between
-showing and telling". What I did, and why:
+Minh's first note: make it clear the corrupted version is corrupted on purpose, "so
+visitors don't think it is a visual bug", without just saying so: "strike a balance
+between showing and telling".
 
-- **Show first.** Faults are sudden and stay random; a mode has an entrance and then
-  holds. So the switch is staged (static and NO SIGNAL in the frame, one tracking bar
-  down the whole page), and the 3D picture tears only while it tunes in and then locks.
-  The permanent tearing of the first build was the most fault-like thing on the page.
-- **Let the world say it.** The on-screen display, the station tab, the opening label
-  and one serial stamp reword themselves (NO SIGNAL, OFF AIR, SIGNAL LOST), and the
-  television's label becomes Retune.
-- **Tell once, lightly, in the station's voice.** A strip of paper tape names the mode
-  (NO SIGNAL · DEAD CHANNEL), carries a Retune button, and for seven seconds one line:
-  "Same station, other side of the dial." It is drawn clean, above the scanlines: the
-  one unbroken thing on a broken-looking page is the cue that the rest is deliberate.
-  A fault does not come with a way back; a mode does.
-- **Plain words where there is nothing to see.** Screen readers get a status message
-  that says the look is on purpose and how to leave it.
+**First answer, and why it was wrong.** I took the most fault-like thing on the page,
+the permanently torn 3D picture, and made it settle after a second. That made the mode
+look less broken. Minh's reply: "right now it looks normal. I want it to make it clear
+the broken pieces are intentional, not make it look unbroken." The task was never to
+hide the damage; it was to make the damage look authored.
+
+**Second answer: a cracked screen.** Damage reads as drawn when it is regular, rigid
+and consistent:
+
+- **One pattern.** Seven straight cracks from one point of impact, the same every
+  time, with a ring and a cross on the impact like a registration mark.
+- **Rigid pieces.** The screen frame and the 3D picture are cut along the same cracks
+  into wedges that move outward and turn a little. Nothing shears or smears, which is
+  what the old vertex tearing did and why it looked like a rendering fault.
+- **Light in the gaps.** The channel's accent shows between the pieces.
+- **The whole page agrees.** The cracks continue across the page as thin lines;
+  headlines break into their words with a corner knocked off and lying below; cards
+  sit slightly out of true.
+- **It breaks, then holds.** The pieces fit together under the NO SIGNAL static and
+  snap apart as it clears. A fault flickers; this does not move again.
+
+Kept from the first answer, as the lighter half of "showing and telling": the display,
+tab and labels reword themselves (NO SIGNAL, OFF AIR, Retune); a strip of clean paper
+tape names the mode (NO SIGNAL · DEAD CHANNEL), carries a Retune button, and for seven
+seconds one line, "Same station, other side of the dial."; screen readers get a plain
+status message.
+
+How the 3D picture breaks without a second pass: the scene is drawn once per piece
+into the same canvas. The vertex shader moves everything as one rigid sheet; the
+fragment shader keeps a pixel only if, traced back, it lay inside that piece. The
+pattern lives in `src/lib/fracture.js`, which the page uses for the frame and the
+cracks, and the scene for the picture and for tracing clicks back.
 
 ## Names
 

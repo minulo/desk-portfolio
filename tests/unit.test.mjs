@@ -330,3 +330,83 @@ test('featureCamera: a quarter turn moves it to +x, and tilting raises it', () =
   assert.ok(side.camera[0] > 1 && Math.abs(side.camera[2] + 2) < 1e-9);
   assert.ok(featureCamera({ ...ball, from: [0, 40] }).camera[1] > 0.5);
 });
+
+// ---------- fracture: the cracked-screen pattern of Static mode ----------
+import { CRACKS, fracture, displace, restore } from '../src/lib/fracture.js';
+
+const broken = fracture({ centre: [1000, 500], size: 800 });
+const toRad = (deg) => (deg * Math.PI) / 180;
+/** A point `r` pixels from the impact, in the direction `deg` (clockwise from east, as on screen). */
+const at = (layout, deg, r) => [layout.impact[0] + Math.cos(toRad(deg)) * r, layout.impact[1] + Math.sin(toRad(deg)) * r];
+
+test('the cracks cut the full circle into wedges, each narrower than a half turn', () => {
+  assert.equal(broken.pieces.length, CRACKS.length);
+  let total = 0;
+  for (const piece of broken.pieces) {
+    const width = piece.to - piece.from;
+    assert.ok(width > 20 && width < 180, `a piece is ${width} degrees wide`);
+    total += width;
+  }
+  assert.equal(Math.round(total), 360);
+});
+
+test('the point of impact sits near the centre of the picture, scaled with it', () => {
+  const small = fracture({ centre: [100, 100], size: 80 });
+  assert.ok(Math.hypot(broken.impact[0] - 1000, broken.impact[1] - 500) < 800 * 0.2);
+  assert.ok(Math.abs((small.impact[0] - 100) * 10 - (broken.impact[0] - 1000)) < 1e-6);
+});
+
+test('every piece moves away from the impact, so the cracks open instead of closing', () => {
+  for (const piece of broken.pieces) {
+    const middle = toRad((piece.from + piece.to) / 2);
+    const outward = piece.offset[0] * Math.cos(middle) + piece.offset[1] * Math.sin(middle);
+    assert.ok(outward > 800 * 0.008, `a piece moves ${outward.toFixed(1)}px outward`);
+    assert.ok(Math.abs(piece.turn) > 0.1 && Math.abs(piece.turn) < 3, `a piece turns ${piece.turn} degrees`);
+  }
+});
+
+test('with amount 0 nothing has moved, and the pieces fit together again', () => {
+  const whole = fracture({ centre: [1000, 500], size: 800, amount: 0 });
+  for (const piece of whole.pieces) {
+    assert.deepEqual(piece.offset.map((v) => Math.abs(v)), [0, 0]);
+    assert.equal(Math.abs(piece.turn), 0);
+  }
+  const point = at(whole, 10, 200);
+  assert.deepEqual(displace(whole, point).map((v) => Math.round(v * 1e6)), point.map((v) => Math.round(v * 1e6)));
+});
+
+test('a point in a piece moves with it, and can be traced back to where it was', () => {
+  for (const piece of broken.pieces) {
+    const point = at(broken, (piece.from + piece.to) / 2, 240);
+    const moved = displace(broken, point);
+    assert.ok(Math.hypot(moved[0] - point[0], moved[1] - point[1]) > 3, 'the point moved');
+    const back = restore(broken, moved);
+    assert.ok(back, 'the moved point is found in a piece');
+    assert.ok(Math.hypot(back[0] - point[0], back[1] - point[1]) < 1e-6);
+  }
+});
+
+test('a point in the gap between two pieces belongs to neither', () => {
+  // On a crack line, well away from the impact: both neighbours have moved off it.
+  const first = broken.pieces[0];
+  assert.equal(restore(broken, at(broken, first.to, 300)), null);
+});
+
+test('each piece comes with an outline that contains its own points and not its neighbours\'', () => {
+  const inside = (polygon, [x, y]) => {
+    let odd = false;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+      const [xi, yi] = polygon[i];
+      const [xj, yj] = polygon[j];
+      if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) odd = !odd;
+    }
+    return odd;
+  };
+  broken.pieces.forEach((piece, i) => {
+    const own = at(broken, (piece.from + piece.to) / 2, 350);
+    const next = broken.pieces[(i + 1) % broken.pieces.length];
+    const other = at(broken, (next.from + next.to) / 2, 350);
+    assert.ok(inside(piece.polygon, own), 'the outline holds the middle of its piece');
+    assert.ok(!inside(piece.polygon, other), 'the outline leaves out the next piece');
+  });
+});

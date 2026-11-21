@@ -3,6 +3,7 @@
 // channel, runs the Static (other-world) switch, and loads the 3D scene afterwards as
 // a separate download.
 import { pickActive } from './lib/active-section.js';
+import { fracture } from './lib/fracture.js';
 
 const html = document.documentElement;
 const sections = [...document.querySelectorAll('main section')];
@@ -16,6 +17,12 @@ const worldSwitch = document.getElementById('world');
 const signal = document.getElementById('signal');
 const worldStatus = document.getElementById('world-status');
 const sweep = document.getElementById('sweep');
+const art = document.querySelector('.art');
+const shards = document.getElementById('shards');
+const cracks = document.getElementById('cracks');
+const impact = document.getElementById('impact');
+const screenFrame = document.querySelector('.art-set > .screen');
+const display = document.querySelector('.art-set > .osd');
 const probe = document.getElementById('art-probe');
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
@@ -23,6 +30,7 @@ const FLIP_MS = 420;  // how long the static covers the art layer
 const SWAP_MS = 150;  // when, under the static, the picture actually changes
 const TUNE_MS = 760;  // the longer flip when the signal itself is lost
 const NOTE_MS = 7000; // how long the note in Static mode explains itself
+const BREAK_MS = 380; // when, in that longer flip, the picture breaks apart
 const isStatic = () => html.dataset.world === 'static';
 let active = 0;       // section under the reference line (drives the menu highlight)
 let swapTimer = 0;
@@ -57,6 +65,7 @@ function updateDisplay(i) {
   const name = (isStatic() && s.dataset.nameStatic) || s.dataset.name;
   osdChannel.replaceChildren(`CH ${s.dataset.channel} `, Object.assign(document.createElement('b'), { textContent: name }));
   osdCode.textContent = `MN-${s.dataset.channel} · ${isStatic() ? '-:--:--' : `0:0${i}:00`}`;
+  copyDisplay();
 }
 
 /** Switch the art layer to section `i`: accent, side, giant word, on-screen display, 3D framing. */
@@ -68,6 +77,79 @@ function applyArt(i, animate = true) {
   word.textContent = s.dataset.word;
   updateDisplay(i);
   showInScene(animate);
+  // In Static mode each channel's picture arrives whole and breaks again.
+  breakPicture(animate ? 90 : null);
+}
+
+// ---------- the break: in Static mode the screen and the picture are in pieces ----------
+// The cracks run from one point of impact (src/lib/fracture.js). The screen frame is cut
+// along them here, into copies that each show one wedge; the 3D scene cuts the picture
+// along the same lines; and the cracks themselves are drawn across the whole page.
+let breakTimer = 0;
+
+/** Give every piece of the screen the display's current wording. */
+function copyDisplay() {
+  for (const copy of shards.querySelectorAll('.osd')) copy.innerHTML = display.innerHTML;
+  for (const el of shards.querySelectorAll('[id]')) el.removeAttribute('id');
+}
+
+/** Cut the screen along the cracks, for where the art window is now. */
+function layoutBreak() {
+  const rect = artRect();
+  const centre = [rect.x + rect.width / 2, rect.y + rect.height / 2];
+  const layout = fracture({ centre, size: rect.width });
+  // The pieces live in a box around the screen; their outlines are measured from its corner.
+  const corner = [shards.offsetLeft - shards.offsetWidth / 2, shards.offsetTop - shards.offsetHeight / 2];
+  const local = ([x, y]) => `${(x - corner[0]).toFixed(1)}px ${(y - corner[1]).toFixed(1)}px`;
+  if (!shards.children.length) {
+    for (let i = 0; i < layout.pieces.length; i++) {
+      const piece = document.createElement('div');
+      piece.className = 'shard';
+      piece.append(screenFrame.cloneNode(true), display.cloneNode(true));
+      shards.append(piece);
+    }
+    copyDisplay();
+  }
+  layout.pieces.forEach((piece, i) => {
+    const el = shards.children[i];
+    el.style.clipPath = `polygon(${piece.polygon.map(local).join(', ')})`;
+    el.style.transformOrigin = local(layout.impact);
+    el.style.setProperty('--dx', `${piece.offset[0].toFixed(2)}px`);
+    el.style.setProperty('--dy', `${piece.offset[1].toFixed(2)}px`);
+    el.style.setProperty('--turn', `${piece.turn}deg`);
+  });
+  // The cracks: straight lines from the impact, long enough to leave any screen.
+  const reach = (window.innerWidth + window.innerHeight) * 2;
+  cracks.innerHTML = layout.pieces.map((piece) => {
+    const angle = (piece.from * Math.PI) / 180;
+    const end = [layout.impact[0] + Math.cos(angle) * reach, layout.impact[1] + Math.sin(angle) * reach];
+    return `<line x1="${layout.impact[0].toFixed(1)}" y1="${layout.impact[1].toFixed(1)}" x2="${end[0].toFixed(1)}" y2="${end[1].toFixed(1)}"/>`;
+  }).join('');
+  impact.style.left = `${layout.impact[0].toFixed(1)}px`;
+  impact.style.top = `${layout.impact[1].toFixed(1)}px`;
+}
+
+/**
+ * Put the pieces where they belong. With `delay` (milliseconds) they first fit together
+ * and then snap apart after it; with null they are simply apart.
+ */
+function breakPicture(delay) {
+  clearTimeout(breakTimer);
+  if (!isStatic()) return;
+  layoutBreak();
+  if (delay === null || reduceMotion.matches) {
+    art.style.setProperty('--apart', '1');
+    scene?.shatter('apart');
+    return;
+  }
+  art.classList.add('is-mended'); // fitted together at once, without easing back
+  art.style.setProperty('--apart', '0');
+  scene?.shatter('whole');
+  breakTimer = setTimeout(() => {
+    art.classList.remove('is-mended');
+    art.style.setProperty('--apart', '1');
+    scene?.shatter('snap');
+  }, delay);
 }
 
 /** A burst of TV static with tracking bars, and the picture rolling back into place. */
@@ -135,6 +217,7 @@ window.addEventListener('scroll', track, { passive: true });
 window.addEventListener('resize', () => {
   track();
   showInScene(false);
+  breakPicture(null);
 });
 
 // The page may open part-way down (reload, or a link to a section).
@@ -182,6 +265,7 @@ function setWorld(on) {
   playSweep();
   showInScene(false); // the wall colour changed
   scene?.setWorld(on);
+  breakPicture(BREAK_MS); // as the static clears, the picture is seen to break
 }
 const toggleWorld = () => setWorld(!isStatic());
 worldSwitch.addEventListener('click', toggleWorld);
@@ -227,6 +311,7 @@ async function startScene() {
     });
     showInScene(false);
     scene.setWorld(isStatic());
+    breakPicture(null);
     html.classList.add('scene-ready');
     performance.mark('scene-ready');
   } catch (err) {

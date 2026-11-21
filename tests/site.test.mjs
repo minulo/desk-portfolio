@@ -486,8 +486,12 @@ describe('in the browser', { skip }, () => {
     await withPage({ viewport: { width: 1440, height: 900 } }, {}, async (page, problems) => {
       await sceneReady(page);
       await untilSettled(page, '.tape');
-      // What a visitor can read (innerText leaves out hidden wording).
-      const text = (sel) => page.evaluate((sel) => document.querySelector(sel).innerText.replace(/\s+/g, ' ').trim(), sel);
+      // What a visitor can read: the copy of the element that is on show (in Static mode the
+      // screen is drawn as broken pieces, each a copy), without wording that is hidden.
+      const text = (sel) => page.evaluate((sel) => {
+        const el = [...document.querySelectorAll(sel)].find((e) => e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden');
+        return el ? el.innerText.replace(/\s+/g, ' ').trim() : '';
+      }, sel);
       const labels = () => page.evaluate(() => [...document.querySelectorAll('.pin')].map((p) => p.textContent));
 
       assert.equal(await page.isVisible('#signal'), false, 'no note while the signal is clean');
@@ -500,7 +504,7 @@ describe('in the browser', { skip }, () => {
       // The picture says so itself...
       assert.match(await text('.osd-play'), /NO SIGNAL/i);
       assert.doesNotMatch(await text('.osd-play'), /PLAY/i);
-      assert.match(await text('#osd-code'), /MN-00 · -:--:--/);
+      assert.match(await text('.osd-code'), /MN-00 · -:--:--/);
       assert.match(await text('.screen-tab'), /OFF AIR/i);
       assert.match(await text('#intro .chip'), /^off air$/i);
       // ...a note names it, explains itself at first, and offers the way back...
@@ -517,7 +521,7 @@ describe('in the browser', { skip }, () => {
       // It holds across a channel change.
       await goTo(page, 'tour');
       await page.waitForFunction(() => document.documentElement.dataset.art === 'tour', null, { timeout: 8000 });
-      assert.match(await text('#osd-code'), /MN-03 · -:--:--/);
+      assert.match(await text('.osd-code'), /MN-03 · -:--:--/);
       assert.ok(await page.isVisible('#signal'));
 
       // Retune puts everything back, and the keyboard is not left on a control that vanished.
@@ -530,7 +534,7 @@ describe('in the browser', { skip }, () => {
       assert.equal(await page.getAttribute('#world', 'aria-pressed'), 'false');
       assert.match(await text('#world-status'), /static mode is off/i);
       assert.match(await text('.osd-play'), /PLAY/i);
-      assert.match(await text('#osd-code'), /MN-03 · 0:03:00/);
+      assert.match(await text('.osd-code'), /MN-03 · 0:03:00/);
       assert.ok((await labels()).some((t) => /Static/.test(t)));
       assert.deepEqual(problems, []);
     });
@@ -550,37 +554,89 @@ describe('in the browser', { skip }, () => {
     });
   });
 
-  test('in Static mode the 3D picture tears only while tuning, then holds still', async () => {
-    const torn = (page) => page.evaluate(() => document.getElementById('scene').dataset.torn ?? '');
-    await withPage({ viewport: { width: 1440, height: 900 } }, {}, async (page) => {
+  test('in Static mode the screen and the picture are broken into the same pieces, and hold still', async () => {
+    const state = (page) => page.evaluate(() => {
+      const shown = (el) => el.getClientRects().length > 0;
+      const pieces = [...document.querySelectorAll('#shards .shard')].filter(shown);
+      return {
+        picture: document.getElementById('scene').dataset.pieces ?? '',
+        screen: pieces.length,
+        moved: new Set(pieces.map((el) => getComputedStyle(el).transform).filter((t) => t !== 'none' && t !== 'matrix(1, 0, 0, 1, 0, 0)')).size,
+        cracks: getComputedStyle(document.getElementById('cracks')).display === 'none' ? 0 : document.querySelectorAll('#cracks line').length,
+        wholeScreenShown: getComputedStyle(document.querySelector('.art-set > .screen')).visibility !== 'hidden',
+      };
+    });
+    const frame = (page) => page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(done)))));
+    await withPage({ viewport: { width: 1440, height: 900 } }, {}, async (page, problems) => {
       await sceneReady(page);
       await goTo(page, 'about');
       await untilSettled(page);
       await page.waitForTimeout(600);
-      assert.equal(await torn(page), '', 'a clean signal is never torn');
+      assert.deepEqual(await state(page), { picture: '', screen: 0, moved: 0, cracks: 0, wholeScreenShown: true }, 'a clean signal is whole');
 
       await page.click('#world');
-      await page.waitForFunction(() => document.getElementById('scene').dataset.torn === '1', null, { timeout: 5000, polling: 'raf' });
-      await page.waitForFunction(() => !document.getElementById('scene').dataset.torn, null, { timeout: 8000 });
+      await page.waitForFunction(() => document.getElementById('scene').dataset.pieces === '7', null, { timeout: 8000 });
+      // The pieces fit together under the static, then snap apart.
+      await page.waitForFunction(() => getComputedStyle(document.querySelector('.art')).getPropertyValue('--apart').trim() === '1', null, { timeout: 8000 });
       await untilSettled(page);
-      // The untorn picture is drawn on the frame after the tear ends; let that frame pass.
-      await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(done)))));
+      await frame(page);
+      assert.deepEqual(await state(page), { picture: '7', screen: 7, moved: 7, cracks: 7, wholeScreenShown: false });
+
+      // Broken, but still: nothing is drawn and nothing animates.
       const a = await gl(page);
       await page.waitForTimeout(1500);
-      assert.equal((await gl(page)).draws - a.draws, 0, 'the picture keeps moving after it has tuned in');
-      assert.equal(await torn(page), '');
+      assert.equal((await gl(page)).draws - a.draws, 0, 'the broken picture keeps being redrawn');
+      assert.deepEqual(await runningAnimations(page), []);
 
-      // Changing channel tears it for a moment again.
+      // A redraw draws the scene once per piece, still in one pass and with the same programs.
       await goTo(page, 'drops');
-      await page.waitForFunction(() => document.getElementById('scene').dataset.torn === '1', null, { timeout: 5000, polling: 'raf' });
-      await page.waitForFunction(() => !document.getElementById('scene').dataset.torn, null, { timeout: 8000 });
+      await page.waitForFunction((frames) => window.__gl.frames > frames, a.frames, { timeout: 8000 });
+      await untilSettled(page);
+      await page.waitForTimeout(900);
+      const b = await gl(page);
+      const frames = b.frames - a.frames;
+      assert.equal((b.draws - a.draws) / frames, 49, 'one featured object and its stand (7 draw calls), once for each of the 7 pieces');
+      assert.equal((b.passes - a.passes) / frames, 1, 'more than one pass per frame');
+      assert.ok(b.programs <= 6, `${b.programs} shader programs linked`);
+      assert.equal((await state(page)).moved, 7, 'the pieces are apart again after the channel change');
+
+      // Retune: one whole picture again.
+      await page.click('#retune');
+      await page.waitForFunction(() => !document.getElementById('scene').dataset.pieces, null, { timeout: 8000 });
+      await untilSettled(page);
+      assert.deepEqual(await state(page), { picture: '', screen: 0, moved: 0, cracks: 0, wholeScreenShown: true });
+      assert.deepEqual(problems, []);
     });
-    // With reduced motion there is no tearing at all.
+    // With reduced motion the pieces are simply apart: nothing snaps.
     await withPage({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' }, {}, async (page) => {
       await sceneReady(page);
       await page.click('#world');
-      await page.waitForFunction(() => document.getElementById('scene').dataset.world === 'static', null, { timeout: 8000 });
-      for (let i = 0; i < 6; i++) { assert.equal(await torn(page), ''); await page.waitForTimeout(120); }
+      await page.waitForFunction(() => document.getElementById('scene').dataset.pieces === '7', null, { timeout: 8000 });
+      assert.deepEqual(await runningAnimations(page), []);
+      const s = await state(page);
+      assert.deepEqual([s.screen, s.moved, s.cracks], [7, 7, 7]);
+    });
+  });
+
+  test('in Static mode an object is found where its broken piece is drawn', async () => {
+    await withPage({ viewport: { width: 1440, height: 900 } }, {}, async (page) => {
+      await sceneReady(page);
+      await untilSettled(page, '.tape');
+      const tv = () => page.evaluate(() => { const c = document.getElementById('scene'); return { x: Number(c.dataset.tvX), y: Number(c.dataset.tvY) }; });
+      const whole = await tv();
+      await page.evaluate(() => document.getElementById('world').click());
+      await page.waitForFunction(() => getComputedStyle(document.querySelector('.art')).getPropertyValue('--apart').trim() === '1', null, { timeout: 8000 });
+      await untilSettled(page, '.tape');
+      await page.waitForTimeout(700);
+      const broken = await tv();
+      assert.ok(Math.hypot(broken.x - whole.x, broken.y - whole.y) > 2, 'the television has moved with its piece');
+      // The television toggles the mode, so a click on it, where it is now, retunes.
+      await page.mouse.move(broken.x - 30, broken.y + 40);
+      await page.mouse.move(broken.x, broken.y, { steps: 4 });
+      await page.waitForTimeout(400);
+      assert.equal(await page.evaluate(() => document.getElementById('scene').style.cursor), 'pointer', 'the television is under the pointer');
+      await page.mouse.click(broken.x, broken.y);
+      await page.waitForFunction(() => !document.documentElement.dataset.world, null, { timeout: 8000 });
     });
   });
 

@@ -7,6 +7,7 @@ import { slab } from './objects.js';
 import { hexToRgb } from './geometry.js';
 import { artWindowOffset } from '../lib/view-offset.js';
 import { featureCamera } from '../lib/feature-view.js';
+import { CRACKS, fracture, displace, restore } from '../lib/fracture.js';
 import { createTweenTracker } from '../lib/tween.js';
 import { renderScale } from '../lib/render-scale.js';
 
@@ -32,6 +33,7 @@ import { renderScale } from '../lib/render-scale.js';
 export async function createScene({ canvas, pinLayer, objects, views, stageTop, labels, onPick, onAction, reducedMotion }) {
   const renderer = new WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'high-performance' });
   renderer.setClearAlpha(0);
+  renderer.autoClear = false; // a broken picture is drawn in several goes over one cleared canvas
 
   const shared = createShared();
   const materials = createMaterials(shared);
@@ -136,7 +138,27 @@ export async function createScene({ canvas, pinLayer, objects, views, stageTop, 
     if (tweens.active && lastTick) stats.slowestGapMs = Math.max(stats.slowestGapMs, now - lastTick);
     lastTick = tweens.active ? now : 0;
     const t0 = performance.now();
-    renderer.render(scene, camera);
+    renderer.clear();
+    const broken = brokenLayout();
+    if (!broken) {
+      shared.uShardOn.value = 0;
+      renderer.render(scene, camera);
+    } else {
+      // Static mode: the scene once per piece, each moved and turned as one rigid sheet.
+      // The layout is in CSS pixels with y down and angles clockwise; the shaders work in
+      // device pixels with y up, so heights flip and turns change sign.
+      const ratio = shared.uPixel.value;
+      const rad = Math.PI / 180;
+      shared.uShardOn.value = 1;
+      shared.uShardP.value.set(broken.impact[0] * ratio, canvas.height - broken.impact[1] * ratio);
+      for (const piece of broken.pieces) {
+        shared.uShardD0.value.set(Math.cos(piece.to * rad), -Math.sin(piece.to * rad));
+        shared.uShardD1.value.set(Math.cos(piece.from * rad), -Math.sin(piece.from * rad));
+        shared.uShardOff.value.set(piece.offset[0] * ratio, -piece.offset[1] * ratio);
+        shared.uShardRot.value = -piece.turn * rad;
+        renderer.render(scene, camera);
+      }
+    }
     stats.lastFrameMs = performance.now() - t0;
     stats.frames++;
     if (shown === 'intro') placePins();
@@ -249,33 +271,29 @@ export async function createScene({ canvas, pinLayer, objects, views, stageTop, 
     if (item) canvas.dataset.feature = item.entry.id; else delete canvas.dataset.feature;
   }
 
-  /**
-   * A burst of tearing that dies away in hard steps: the picture finding its hold.
-   * At rest the picture is never torn.
-   */
-  let reseeded = 0;
-  function steady() {
-    tweens.cancel(shared.uTear);
-    shared.uTear.value = 0;
-    delete canvas.dataset.torn;
+  // Overshoots 1 a little before landing on it: the "pop" of something slapped into place.
+  const overshoot = (p) => 1 + 2.70158 * (p - 1) ** 3 + 1.70158 * (p - 1) ** 2;
+
+  // ----- the break: in Static mode the picture is in pieces -----
+  let apart = 0; // 0 = the pieces fit together, 1 = fully apart (a little more while it overshoots)
+  /** How the picture is broken right now, in CSS pixels, or null when it is whole. */
+  function brokenLayout() {
+    if (!world) return null;
+    return fracture({ centre: [artRect.x + artRect.width / 2, artRect.y + artRect.height / 2], size: artRect.width, amount: apart });
   }
-  function tear(duration) {
-    if (reducedMotion()) return steady();
-    tween({
-      key: shared.uTear,
-      duration,
-      onFrame: (p) => {
-        const amount = Math.ceil((1 - p) * 5) / 5; // 1, 0.8 ... 0.2, then 0 on the last frame
-        const now = performance.now();
-        if (amount !== shared.uTear.value || now - reseeded > 80) {
-          shared.uSeed.value = Math.random(); // the bands jump, a few times a second
-          reseeded = now;
-        }
-        shared.uTear.value = amount;
-        if (amount > 0) canvas.dataset.torn = '1'; else delete canvas.dataset.torn;
-        invalidate();
-      },
-    });
+  /**
+   * Set how the pieces sit: 'whole' fitted together, 'apart' in place, or 'snap' to
+   * break apart now with a little overshoot.
+   */
+  function shatter(how) {
+    tweens.cancel(shatter);
+    if (how === 'snap' && world && !reducedMotion()) {
+      apart = 0;
+      tween({ key: shatter, duration: 420, onFrame: (p) => { apart = overshoot(p); invalidate(); } });
+    } else {
+      apart = how === 'whole' ? 0 : 1;
+    }
+    invalidate();
   }
 
   /** Switch the Static (other-world) look on or off. */
@@ -286,12 +304,10 @@ export async function createScene({ canvas, pinLayer, objects, views, stageTop, 
     for (const it of clickable) {
       if (it.pinText && it.entry.action === 'world') it.pinText.textContent = (world && it.entry.labelOn) || it.entry.label || it.entry.action;
     }
-    if (world) tear(1000); else steady();
+    // The number of pieces the picture is in, for anything that wants to know.
+    if (world) canvas.dataset.pieces = String(CRACKS.length); else delete canvas.dataset.pieces;
     applyLook();
   }
-
-  // Overshoots 1 a little before landing on it: the "pop" of something slapped into place.
-  const overshoot = (p) => 1 + 2.70158 * (p - 1) ** 3 + 1.70158 * (p - 1) ** 2;
 
   /**
    * Frame the scene for a page section.
@@ -315,7 +331,6 @@ export async function createScene({ canvas, pinLayer, objects, views, stageTop, 
     accent = hexToRgb(look.accent);
     wall = hexToRgb(look.wall);
     const animate = (look.animate ?? true) && !reducedMotion();
-    if (world && animate) tear(450); // a channel change in Static tears the picture for a moment
 
     setHover(null);
     applyLook();
@@ -346,6 +361,14 @@ export async function createScene({ canvas, pinLayer, objects, views, stageTop, 
   let hovered = null;
 
   function pick(clientX, clientY) {
+    // In a broken picture, find which part of the whole picture is showing under the
+    // pointer. In the gap between two pieces there is nothing.
+    const broken = brokenLayout();
+    if (broken) {
+      const original = restore(broken, [clientX, clientY]);
+      if (!original) return null;
+      [clientX, clientY] = original;
+    }
     ndc.set((clientX / viewWidth()) * 2 - 1, -(clientY / viewHeight()) * 2 + 1);
     raycaster.setFromCamera(ndc, camera);
     let best = null;
@@ -439,7 +462,9 @@ export async function createScene({ canvas, pinLayer, objects, views, stageTop, 
   const projected = new Vector3();
   const onScreen = (point) => {
     projected.copy(point).project(camera);
-    return [(projected.x * 0.5 + 0.5) * viewWidth(), (-projected.y * 0.5 + 0.5) * viewHeight()];
+    const at = [(projected.x * 0.5 + 0.5) * viewWidth(), (-projected.y * 0.5 + 0.5) * viewHeight()];
+    const broken = brokenLayout();
+    return broken ? displace(broken, at) : at; // a label goes where its piece went
   };
   function placePins() {
     for (const it of clickable) {
@@ -464,5 +489,5 @@ export async function createScene({ canvas, pinLayer, objects, views, stageTop, 
   // later returns it, three.js rebuilds its state but nothing asks for a new frame.
   canvas.addEventListener('webglcontextrestored', resize);
 
-  return { show, setWorld, resize, stats, get modelCount() { return modelCount; } };
+  return { show, setWorld, shatter, resize, stats, get modelCount() { return modelCount; } };
 }

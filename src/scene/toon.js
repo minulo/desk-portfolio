@@ -13,10 +13,10 @@ import { ShaderMaterial, Vector2, Vector3, BackSide, DoubleSide } from 'three';
  *  shadow   a flat shadow: the mesh flattened onto a plane along the light direction
  *
  * In Static (other-world) mode the same shaders go dark, light the edges in the accent
- * and add scanlines. That look holds still. Tearing is separate and brief: while the
- * picture tunes in (the mode was just switched on, or the channel changed) the corners
- * that fall in a few horizontal bands are pushed sideways, less at each step, until the
- * picture locks. A picture that stayed torn would read as a fault, not as a style.
+ * and add scanlines, and the picture is broken into pieces: the scene is drawn once per
+ * piece, each time moved and turned rigidly, and each time keeping only the pixels that
+ * lay inside that piece before it moved (see src/lib/fracture.js). Still one pass, the
+ * same three programs, and nothing is drawn while the picture is at rest.
  *
  * Colours are written as they should appear on screen; nothing here converts colour spaces.
  */
@@ -29,21 +29,52 @@ export function createShared() {
     uResolution: { value: new Vector2(1, 1) },                     // canvas size in device pixels
     uPixel: { value: 1 },                                          // device pixels per CSS pixel
     uWorld: { value: 0 },                                          // 1 in Static mode
-    uTear: { value: 0 },                                           // 0 at rest, up to 1 while tuning in
-    uSeed: { value: 0 },                                           // where the torn bands fall
+    // One broken piece of the picture (see SHARD below). Set again for each piece drawn.
+    uShardOn: { value: 0 },
+    uShardP: { value: new Vector2() },
+    uShardOff: { value: new Vector2() },
+    uShardRot: { value: 0 },
+    uShardD0: { value: new Vector2(1, 0) },
+    uShardD1: { value: new Vector2(0, 1) },
   };
 }
 
-// Shared by all three vertex shaders so an object, its outline and its shadow tear together.
-// It moves vertices, not pixels: no extra pass, and nothing to redraw while idle.
-const GLITCH = /* glsl */ `
-uniform float uTear;
-uniform float uSeed;
-vec4 glitch(vec4 clip) {
-  float row = clip.y / clip.w * 2.6 + uSeed;
-  float torn = step(0.86, fract(row)) - step(0.955, fract(row * 1.7 + 0.3));
-  clip.x += torn * 0.045 * uTear * clip.w;
+// One broken piece of the picture. Shared by all three materials, so an object, its
+// outlines and its shadow break along the same lines. Everything is in device pixels
+// with the origin at the bottom left, as gl_FragCoord is.
+const SHARD = /* glsl */ `
+uniform float uShardOn;   // 0 draws the picture whole
+uniform vec2 uShardP;     // the point of impact
+uniform vec2 uShardOff;   // how far this piece has moved
+uniform float uShardRot;  // how far it has turned around the impact, radians
+`;
+const SHARD_VERT = /* glsl */ `
+${SHARD}
+uniform vec2 uResolution;
+vec4 shard(vec4 clip) {
+  if (uShardOn < 0.5) return clip;
+  float c = cos(uShardRot);
+  float s = sin(uShardRot);
+  // The pixel position times w, so nothing is divided: right behind the camera too.
+  vec2 q = (clip.xy * 0.5 + 0.5 * clip.w) * uResolution - uShardP * clip.w;
+  q = vec2(c * q.x - s * q.y, s * q.x + c * q.y) + (uShardP + uShardOff) * clip.w;
+  clip.xy = q / uResolution * 2.0 - clip.w;
   return clip;
+}
+`;
+const SHARD_FRAG = /* glsl */ `
+${SHARD}
+uniform vec2 uShardD0;    // the two cracks that bound this piece, as directions from
+uniform vec2 uShardD1;    // the impact; the piece lies anticlockwise from D0 to D1
+void shardClip() {
+  if (uShardOn < 0.5) return;
+  // Where this pixel was before the piece moved...
+  vec2 p = gl_FragCoord.xy - uShardOff - uShardP;
+  float c = cos(uShardRot);
+  float s = sin(uShardRot);
+  p = vec2(c * p.x + s * p.y, c * p.y - s * p.x);
+  // ...and it is kept only if that lies between the two cracks.
+  if (uShardD0.x * p.y - uShardD0.y * p.x < 0.0 || p.x * uShardD1.y - p.y * uShardD1.x < 0.0) discard;
 }
 `;
 
@@ -52,13 +83,13 @@ attribute vec4 aColor;
 varying vec4 vColor;
 varying vec3 vNormal;
 varying vec3 vWorld;
-${GLITCH}
+${SHARD_VERT}
 void main() {
   vColor = aColor;
   vec4 world = modelMatrix * vec4(position, 1.0);
   vWorld = world.xyz;
   vNormal = normalize(mat3(modelMatrix) * normal);
-  gl_Position = glitch(projectionMatrix * viewMatrix * world);
+  gl_Position = shard(projectionMatrix * viewMatrix * world);
 }
 `;
 
@@ -74,6 +105,7 @@ uniform float uHover;
 varying vec4 vColor;
 varying vec3 vNormal;
 varying vec3 vWorld;
+${SHARD_FRAG}
 
 // Brighten a hovered surface by what headroom its colour has, so paper never turns white.
 vec3 hovered(vec3 colour, float amount) {
@@ -93,6 +125,7 @@ void main() {
   // below: a shader may only ask for that in code every pixel runs.
   float aa = fwidth(ndl) + 1e-4;
   float specAa = fwidth(spec) + 1e-4;
+  shardClip();
 
   // Flat parts (screens, labels, printed details) are drawn exactly as painted.
   if (vColor.a > 0.5) {
@@ -154,13 +187,12 @@ void main() {
 
 const OUTLINE_VERT = /* glsl */ `
 attribute vec3 aSmooth;
-uniform vec2 uResolution;
 uniform float uPixel;
 uniform float uWidth;
 uniform float uShift;
-${GLITCH}
+${SHARD_VERT}
 void main() {
-  vec4 clip = glitch(projectionMatrix * modelViewMatrix * vec4(position, 1.0));
+  vec4 clip = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   // Push each vertex outward in screen space, so the line keeps the same pixel width
   // however far away the object is.
   vec3 viewNormal = normalize(normalMatrix * aSmooth);
@@ -168,20 +200,24 @@ void main() {
   clip.xy += direction * (uWidth * uPixel) / uResolution * 2.0 * clip.w;
   // A sideways offset, used in Static mode to split the edge into two colours.
   clip.x += uShift * uPixel / uResolution.x * 2.0 * clip.w;
-  gl_Position = clip;
+  gl_Position = shard(clip);
 }
 `;
 
 const OUTLINE_FRAG = /* glsl */ `
 uniform vec3 uColor;
-void main() { gl_FragColor = vec4(uColor, 1.0); }
+${SHARD_FRAG}
+void main() {
+  shardClip();
+  gl_FragColor = vec4(uColor, 1.0);
+}
 `;
 
 const SHADOW_VERT = /* glsl */ `
 uniform vec3 uLight;
 uniform float uPlane;
 varying vec3 vWorld;
-${GLITCH}
+${SHARD_VERT}
 void main() {
   vec4 world = modelMatrix * vec4(position, 1.0);
   // Slide the vertex along the light direction until it reaches the plane.
@@ -189,7 +225,7 @@ void main() {
   world.xyz -= uLight * t;
   world.y = uPlane;
   vWorld = world.xyz;
-  gl_Position = glitch(projectionMatrix * viewMatrix * world);
+  gl_Position = shard(projectionMatrix * viewMatrix * world);
 }
 `;
 
@@ -198,14 +234,26 @@ uniform vec3 uColor;
 uniform vec2 uCentre;   // centre of the surface the shadow may fall on (x, z)
 uniform vec2 uHalf;     // and its half-size
 varying vec3 vWorld;
+${SHARD_FRAG}
 void main() {
+  shardClip();
   if (abs(vWorld.x - uCentre.x) > uHalf.x || abs(vWorld.z - uCentre.y) > uHalf.y) discard;
   gl_FragColor = vec4(uColor, 1.0);
 }
 `;
 
 export function createMaterials(shared) {
-  const world = { uWorld: shared.uWorld, uTear: shared.uTear, uSeed: shared.uSeed };
+  // What every material needs to follow the mode and to be drawn as one broken piece.
+  const world = {
+    uWorld: shared.uWorld,
+    uResolution: shared.uResolution,
+    uShardOn: shared.uShardOn,
+    uShardP: shared.uShardP,
+    uShardOff: shared.uShardOff,
+    uShardRot: shared.uShardRot,
+    uShardD0: shared.uShardD0,
+    uShardD1: shared.uShardD1,
+  };
   return {
     /** Each object gets its own copy so it can be highlighted on its own; all copies share one shader program. */
     toon({ gloss = 0, sss = 0.22, rim = 0.4 } = {}) {
@@ -242,7 +290,6 @@ export function createMaterials(shared) {
         polygonOffsetUnits: 3,
         uniforms: {
           ...world,
-          uResolution: shared.uResolution,
           uPixel: shared.uPixel,
           uWidth: { value: width },
           uShift: shift,
