@@ -1,7 +1,8 @@
-/* Page layout. Each section is two columns: an opaque colour block with the words, and
-   an empty "window" through which the fixed art layer shows. Sections are ordinary
+/* Page layout. Each section is two columns: an opaque panel with the words, and an
+   empty "window" through which the fixed art layer shows. Sections are ordinary
    document flow, so the page scrolls natively and can be as long as its content. */
-/* The page lets the pointer through to the art layer wherever there is no block. */
+
+/* The page lets the pointer through to the art layer wherever there is no panel. */
 main { position: relative; z-index: 2; overflow-x: clip; pointer-events: none; }
 .block { pointer-events: auto; }
 
@@ -13,15 +14,21 @@ section {
 }
 .window { min-height: 46svh; }
 
+/* A panel is a base tone. --bg / --fg / --mute are what its parts read. */
 .block {
   position: relative;
   display: flex;
   flex-direction: column;
   justify-content: center;
   padding: calc(var(--bar) + 5vh) var(--pad) 9vh;
-  --line: rgba(11, 11, 12, 0.2);
+  background: var(--bg);
+  color: var(--fg);
 }
-/* The block's inner edge leans. Text keeps clear of the lean with extra padding. */
+.block--black { --bg: var(--black); --fg: var(--paper); --mute: var(--dim); --line: rgba(236, 231, 218, 0.22); --card: var(--char); }
+.block--char { --bg: var(--char); --fg: var(--paper); --mute: var(--dim); --line: rgba(236, 231, 218, 0.22); --card: var(--black); }
+.block--paper { --bg: var(--paper); --fg: var(--ink); --mute: var(--dim-ink); --line: rgba(20, 19, 18, 0.24); --card: #f6f2e8; }
+
+/* The panel's inner edge leans. Text keeps clear of the lean with extra padding. */
 section[data-side='right'] .block {
   clip-path: polygon(0 0, 100% 0, calc(100% - var(--slant)) 100%, 0 100%);
   padding-right: calc(var(--pad) + var(--slant));
@@ -30,14 +37,28 @@ section[data-side='left'] .block {
   clip-path: polygon(var(--slant) 0, 100% 0, 100% 100%, 0 100%);
   padding-left: calc(var(--pad) + var(--slant));
 }
-
-.block--ink { background: var(--ink); color: var(--paper); --hl: var(--yellow); --line: rgba(242, 239, 230, 0.24); }
-.block--paper { background: var(--paper); color: var(--ink); --hl: var(--magenta); }
-.block--crimson { background: var(--crimson); color: var(--paper); --hl: var(--yellow); --line: rgba(242, 239, 230, 0.38); }
-.block--magenta { background: var(--magenta); color: var(--ink); --hl: var(--paper); }
+/* A thin accent rule along the top of each panel: the channel's colour, used small. */
+.block::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 6px;
+  background: var(--accent);
+}
 
 .block > * + * { margin-top: 18px; }
 .block p { max-width: 58ch; }
+
+/* On paper, the highlighted word is ink knocked out of an accent block. */
+.block--paper .hl {
+  display: inline-block;
+  padding: 0.02em 0.16em 0 0.1em;
+  background: var(--accent);
+  color: var(--ink);
+  transform: skewX(-6deg);
+}
 
 /* ---------- top bar ---------- */
 .bar {
@@ -47,45 +68,53 @@ section[data-side='left'] .block {
   height: var(--bar);
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 10px;
   padding: 0 var(--pad);
   pointer-events: none;
 }
 .bar > * { pointer-events: auto; }
 .logo {
-  padding: 5px 11px 2px;
+  margin-right: auto;
+  padding: 2px 12px 0 9px;
   background: var(--yellow);
   color: var(--ink);
   border: var(--edge) solid var(--ink);
   box-shadow: 4px 4px 0 var(--ink);
-  font: 400 1.5rem / 1 var(--display);
-  letter-spacing: 0.02em;
+  font: italic 800 1.7rem / 1.05 var(--display);
   text-decoration: none;
 }
 .nav { display: flex; gap: 6px; }
-.nav a {
-  padding: 8px 12px 7px;
-  background: var(--ink);
+.nav a, .switch {
+  padding: 8px 11px 7px;
+  background: var(--black);
   color: var(--paper);
-  border: 2px solid var(--paper);
-  font: 700 0.7rem / 1 var(--label);
-  letter-spacing: 0.14em;
+  border: 2px solid var(--concrete);
+  font: 700 0.66rem / 1 var(--mono);
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   text-decoration: none;
-  transition: transform 0.12s;
+  transition: translate 0.18s var(--boing);
 }
-.nav a b { margin-right: 8px; color: var(--yellow); font-weight: 700; }
-.nav a:hover { transform: translateY(-2px); }
+.nav a b { margin-right: 7px; color: var(--concrete); font-weight: 700; }
+.nav a:hover, .switch:hover { translate: 0 -3px; }
 html[data-section='about'] .nav a[href='#about'],
 html[data-section='drops'] .nav a[href='#drops'],
 html[data-section='tour'] .nav a[href='#tour'],
 html[data-section='kit'] .nav a[href='#kit'],
-html[data-section='contact'] .nav a[href='#contact'] { background: var(--yellow); color: var(--ink); border-color: var(--ink); }
+html[data-section='contact'] .nav a[href='#contact'] { background: var(--accent); color: var(--ink); border-color: var(--ink); }
 html[data-section='about'] .nav a[href='#about'] b,
 html[data-section='drops'] .nav a[href='#drops'] b,
 html[data-section='tour'] .nav a[href='#tour'] b,
 html[data-section='kit'] .nav a[href='#kit'] b,
 html[data-section='contact'] .nav a[href='#contact'] b { color: var(--ink); }
+
+/* The Static switch: a rocker with a signal light. */
+.switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.switch span { color: var(--concrete); }
+.switch b { font-weight: 700; }
+.switch::before { content: ''; width: 8px; height: 8px; background: var(--acid); }
+.switch[aria-pressed='true'] { border-color: var(--magenta); }
+.switch[aria-pressed='true']::before { background: var(--magenta); }
 
 /* ---------- hazard tape across the bottom of the intro ---------- */
 /* The wrap cuts the tape off at the section's edges, so it can lean and overshoot. */
@@ -95,7 +124,7 @@ html[data-section='contact'] .nav a[href='#contact'] b { color: var(--ink); }
   left: -2%;
   right: -2%;
   bottom: 18px;
-  height: 46px;
+  height: 44px;
   display: flex;
   align-items: center;
   overflow: hidden;
@@ -107,12 +136,15 @@ html[data-section='contact'] .nav a[href='#contact'] b { color: var(--ink); }
   transform: rotate(-1.4deg);
 }
 .tape-track { display: flex; white-space: nowrap; will-change: transform; animation: tape 36s linear infinite; }
-.tape-track span { font: 700 0.76rem var(--label); letter-spacing: 0.2em; text-transform: uppercase; }
+.tape-track span { font: 700 0.72rem var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
 @keyframes tape { to { transform: translateX(-50%); } }
 /* Only move the tape while the intro is the section on show. */
 html:not([data-section='intro']) .tape-track { animation-play-state: paused; }
 
-/* ---------- narrower screens: the window sits above the block ---------- */
+/* ---------- narrower screens: the window sits above the panel ---------- */
+@media (max-width: 1180px) {
+  .nav a:not(.nav-hot) { display: none; }
+}
 @media (max-width: 860px) {
   :root { --bar: 58px; --slant-y: 34px; }
   section { grid-template-columns: minmax(0, 1fr); }
@@ -124,8 +156,9 @@ html:not([data-section='intro']) .tape-track { animation-play-state: paused; }
     padding: calc(var(--slant-y) + 26px) 20px 56px;
     justify-content: flex-start;
   }
+  .block::before { display: none; }
   #intro .block { padding-bottom: 96px; }
-  .nav a:not(.nav-hot) { display: none; }
-  h1 { font-size: clamp(3.6rem, 22vw, 8rem); }
-  h2 { font-size: clamp(3rem, 15vw, 6rem); }
+  .switch span { display: none; }
+  h1 { font-size: clamp(4rem, 24vw, 8.6rem); }
+  h2 { font-size: clamp(3.2rem, 16vw, 6.4rem); }
 }

@@ -5,32 +5,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Minh Nguyen · Software Engineer</title>
     <meta name="description" content="Minh Nguyen, Associate Software Engineer at Canonical. Platform tooling on one side, fast and accessible web on the other." />
-    <meta name="theme-color" content="#0b0b0c" />
+    <meta name="theme-color" content="#0d0c0b" />
     <link rel="stylesheet" href="/src/styles/main.css" />
   </head>
   <body>
     <a class="skip" href="#about">Skip to content</a>
 
-    <!-- Art layer: fixed behind the page. Everything in it is decoration. -->
+    <!-- Art layer: fixed behind the page. Everything in it is decoration.
+         A concrete wall, a giant word, a TV-screen frame, the 3D set (which overlaps the
+         frame like a sticker), the on-screen display, and the channel-flip static. -->
     <div class="art" aria-hidden="true">
-      <div class="art-field"></div>
+      <div class="art-wall"></div>
       <div class="art-dots"></div>
       <p class="art-word" id="art-word">MN</p>
-      <svg class="art-sigil" viewBox="0 0 600 600" fill="none" aria-hidden="true">
-        <defs><path id="sigil-ring" d="M300 300 m-236 0 a236 236 0 1 1 472 0 a236 236 0 1 1 -472 0" /></defs>
-        <circle cx="300" cy="300" r="286" stroke="currentColor" stroke-width="3" />
-        <circle cx="300" cy="300" r="268" stroke="currentColor" stroke-width="14" stroke-dasharray="2 12" />
-        <circle cx="300" cy="300" r="208" stroke="currentColor" stroke-width="2" />
-        <circle cx="300" cy="300" r="196" stroke="currentColor" stroke-width="6" stroke-dasharray="44 16 4 16" />
-        <text class="art-sigil-text" fill="currentColor"><textPath href="#sigil-ring" startOffset="0">PLATFORM TOOLING ✦ FAST ACCESSIBLE WEB ✦ OPEN SOURCE ✦ CHARMS AND ROCKS ✦ SHIP IT ✦ </textPath></text>
-        <path d="M300 112 L463 394 H137 Z" stroke="currentColor" stroke-width="4" />
-        <circle cx="300" cy="300" r="94" stroke="currentColor" stroke-width="2" />
-        <path d="M300 14 v36 M300 550 v36 M14 300 h36 M550 300 h36" stroke="currentColor" stroke-width="8" />
-        <path d="M300 100 l12 12 l-12 12 l-12 -12 Z M463 382 l12 12 l-12 12 l-12 -12 Z M137 382 l12 12 l-12 12 l-12 -12 Z" fill="currentColor" />
-      </svg>
-      <canvas id="scene"></canvas>
+      <div class="art-set" id="art-set">
+        <div class="screen">
+          <span class="screen-tab">MN-TV</span>
+          <span class="screen-stripe"></span>
+        </div>
+        <div class="osd">
+          <span class="osd-play">&#9654; PLAY <i>SP</i></span>
+          <span class="osd-channel" id="osd-channel">CH 00 <b>ON AIR</b></span>
+          <span class="osd-code" id="osd-code">MN-00 &middot; 0:00:00</span>
+        </div>
+        <canvas id="scene"></canvas>
+      </div>
       <div class="art-tags" id="art-tags"></div>
-      <div class="art-wipe" id="art-wipe"></div>
+      <div class="art-flip" id="art-flip"><span id="flip-channel">CH 00</span></div>
     </div>
 
     <header class="bar">
@@ -42,18 +43,19 @@
         <a href="#kit"><b>04</b>Kit</a>
         <a href="#contact" class="nav-hot"><b>05</b>Hotline</a>
       </nav>
+      <button type="button" id="world" class="switch" aria-pressed="false" title="Tune to the dead channel"><span>Signal</span><b>Clean</b></button>
     </header>
 
     <main>
       <!-- ============ INTRO ============ -->
-      <section id="intro" data-accent="yellow" data-side="right" data-word="MN" data-focus="desk">
-        <div class="block block--ink">
-          <p class="label"><span class="chip chip--yellow">Portfolio</span>Rochester, NY · 2026</p>
+      <section id="intro" data-accent="yellow" data-channel="00" data-name="On air" data-side="right" data-word="MN">
+        <div class="block block--black">
+          <p class="label"><span class="chip">On air</span>Portfolio · Rochester, NY · 2026</p>
           <h1><span>Minh</span> <span class="hl">Nguyen</span></h1>
           <p class="role">Associate Software Engineer <b>@ Canonical</b></p>
           <p class="lede">Crafting software end to end — platform tooling on one side, fast and accessible web on the other, with a soft spot for thoughtful detail.</p>
           <p class="actions">
-            <a class="btn btn--yellow" href="#drops">See the drops <span aria-hidden="true">→</span></a>
+            <a class="btn btn--accent" href="#drops">See the drops <span aria-hidden="true">→</span></a>
             <a class="btn btn--ghost" href="#contact">Hotline</a>
           </p>
           <ol class="index">
@@ -63,6 +65,7 @@
             <li><a href="#kit"><b>04</b>Kit</a></li>
             <li><a href="#contact"><b>05</b>Hotline</a></li>
           </ol>
+          <p class="stamp"><span class="barcode" aria-hidden="true"></span><span class="serial">MN-00-ONAIR // 5 CHANNELS // NO SIGNAL LOST</span></p>
         </div>
         <div class="window"></div>
         <div class="tape-wrap" aria-hidden="true"><div class="tape">
@@ -74,12 +77,12 @@
       </section>
 
       <!-- ============ WHO ============ -->
-      <section id="about" data-accent="magenta" data-side="left" data-word="WHO" data-focus="mug">
+      <section id="about" data-accent="cyan" data-channel="01" data-name="Who" data-side="left" data-word="WHO">
         <div class="window"></div>
         <div class="block block--paper">
-          <p class="label"><span class="num">01</span>Who</p>
+          <p class="label"><span class="num">CH 01</span>Who</p>
           <h2>Who's at <span class="hl nb">the desk</span></h2>
-          <p>I'm a software engineer focused on building fast, accessible frontend experiences and dependable backend systems.</p>
+          <blockquote class="speech"><p>I'm a software engineer focused on building fast, accessible frontend experiences and dependable backend systems.</p></blockquote>
           <p>I've worked across startups, big tech, and research labs, turning ideas into production features and collaborating with teams to build inclusive, polished products.</p>
           <div class="notice">
             <p class="notice-head">Now playing</p>
@@ -95,13 +98,14 @@
             <li>Dean's Scholarship</li>
             <li>Master's Scholarship</li>
           </ul>
+          <p class="stamp"><span class="barcode" aria-hidden="true"></span><span class="serial">MN-01-SIDEA // UNIVERSITY OF ROCHESTER</span></p>
         </div>
       </section>
 
       <!-- ============ DROPS ============ -->
-      <section id="drops" data-accent="paper" data-side="right" data-word="DROPS" data-focus="monitor">
-        <div class="block block--ink">
-          <p class="label"><span class="num">02</span>Drops</p>
+      <section id="drops" data-accent="magenta" data-channel="02" data-name="Drops" data-side="right" data-word="DROPS">
+        <div class="block block--char">
+          <p class="label"><span class="num">CH 02</span>Drops</p>
           <h2>The <span class="hl">drops</span></h2>
           <ol class="drops">
             <li>
@@ -140,15 +144,16 @@
             <li><a href="https://github.com/canonical/rockcraft" rel="noopener"><b>canonical/rockcraft</b><i>contributor</i><span>Builds rocks: OCI images based on Ubuntu.</span></a></li>
             <li><a href="https://github.com/canonical/indico-operator" rel="noopener"><b>canonical/indico-operator</b><i>contributor</i><span>The Juju charm for Indico, CERN's event platform.</span></a></li>
           </ul>
+          <p class="stamp"><span class="barcode" aria-hidden="true"></span><span class="serial">MN-02-TAPES // 3 DROPS + 5 COLLABS</span></p>
         </div>
         <div class="window"></div>
       </section>
 
       <!-- ============ TOUR ============ -->
-      <section id="tour" data-accent="ink" data-side="left" data-word="TOUR" data-focus="cone">
+      <section id="tour" data-accent="crimson" data-channel="03" data-name="Tour" data-side="left" data-word="TOUR">
         <div class="window"></div>
-        <div class="block block--crimson">
-          <p class="label"><span class="num">03</span>Tour</p>
+        <div class="block block--black">
+          <p class="label"><span class="num">CH 03</span>Tour</p>
           <h2>On <span class="hl">tour</span></h2>
           <ol class="tour">
             <li class="is-now"><time>2026.06 — now</time><b>Associate Software Engineer</b><span>Canonical</span><i>Remote</i></li>
@@ -169,13 +174,14 @@
             <li><time>2023.01 — 2025.05</time><b>Communication Team</b><span>DandyHacks · University of Rochester</span><i>Rochester, NY</i></li>
             <li><time>2026.04</time><b>Guest Handler</b><span>Tora-Con · RIT</span><i>Rochester, NY</i></li>
           </ol>
+          <p class="stamp"><span class="barcode" aria-hidden="true"></span><span class="serial">MN-03-ROAD // 12 DATES + 2 ENCORE</span></p>
         </div>
       </section>
 
       <!-- ============ KIT ============ -->
-      <section id="kit" data-accent="yellow" data-side="right" data-word="KIT" data-focus="keyboard">
+      <section id="kit" data-accent="acid" data-channel="04" data-name="Kit" data-side="right" data-word="KIT">
         <div class="block block--paper">
-          <p class="label"><span class="num">04</span>Kit</p>
+          <p class="label"><span class="num">CH 04</span>Kit</p>
           <h2>The <span class="hl">kit</span></h2>
           <div class="kit">
             <h3>Languages</h3>
@@ -230,25 +236,26 @@
               <li><svg aria-hidden="true"><use href="icons.svg#vite"></use></svg>Vite / Webpack</li>
             </ul>
           </div>
+          <p class="stamp"><span class="barcode" aria-hidden="true"></span><span class="serial">MN-04-DISKS // 5 SHELVES</span></p>
         </div>
         <div class="window"></div>
       </section>
 
       <!-- ============ HOTLINE ============ -->
-      <section id="contact" data-accent="ink" data-side="left" data-word="CALL" data-focus="phone">
+      <section id="contact" data-accent="yellow" data-channel="05" data-name="Hotline" data-side="left" data-word="CALL">
         <div class="window"></div>
-        <div class="block block--magenta">
-          <p class="label"><span class="num">05</span>Hotline</p>
+        <div class="block block--char">
+          <p class="label"><span class="num">CH 05</span>Hotline</p>
           <h2>Hot<span class="hl">line</span></h2>
           <p class="lede">Email is the fastest way to reach me.</p>
           <a class="mail" href="mailto:mnguyen31@u.rochester.edu">mnguyen31@<wbr />u.rochester.edu</a>
           <ul class="lines">
-            <li><a class="btn btn--ink" href="https://github.com/Sonicfires2" rel="noopener"><svg aria-hidden="true"><use href="icons.svg#github"></use></svg>GitHub <small>Sonicfires2</small></a></li>
-            <li><a class="btn btn--ink" href="https://github.com/minulo" rel="noopener"><svg aria-hidden="true"><use href="icons.svg#github"></use></svg>Open source <small>minulo</small></a></li>
-            <li><a class="btn btn--ink" href="https://www.linkedin.com/in/minh-nguyen-98a48a245/" rel="noopener">LinkedIn</a></li>
-            <li><a class="btn btn--paper" href="Minh_Nguyen_Resume.pdf" download>Résumé <small>PDF</small></a></li>
+            <li><a class="btn" href="https://github.com/Sonicfires2" rel="noopener"><svg aria-hidden="true"><use href="icons.svg#github"></use></svg>GitHub <small>Sonicfires2</small></a></li>
+            <li><a class="btn" href="https://github.com/minulo" rel="noopener"><svg aria-hidden="true"><use href="icons.svg#github"></use></svg>Open source <small>minulo</small></a></li>
+            <li><a class="btn" href="https://www.linkedin.com/in/minh-nguyen-98a48a245/" rel="noopener">LinkedIn</a></li>
+            <li><a class="btn btn--accent" href="Minh_Nguyen_Resume.pdf" download>Résumé <small>PDF</small></a></li>
           </ul>
-          <p class="foot">Minh Nguyen · Rochester, NY · 2026</p>
+          <p class="stamp"><span class="barcode" aria-hidden="true"></span><span class="serial">MN-05-LINE // MINH NGUYEN // ROCHESTER NY 2026</span></p>
         </div>
       </section>
     </main>

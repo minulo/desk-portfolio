@@ -1,58 +1,99 @@
-/* The art layer sits fixed behind the page: a flat colour field, halftone dots, a huge
-   outlined word, a slowly turning sigil, and the 3D canvas. Nothing here is content. */
+/* The art layer sits fixed behind the page. Back to front: a concrete wall with halftone
+   dots, a giant outlined word, the screen frame with scanlines, the 3D set (drawn over
+   the frame so objects overlap its border like stickers), the on-screen display, and
+   the static that covers everything during a channel flip. Nothing here is content. */
 .art {
   position: fixed;
   inset: 0;
   z-index: 0;
   overflow: hidden;
-  background: var(--field);
-  color: var(--field-ink);
+  background: var(--wall);
+  color: var(--wall-ink);
   contain: strict;
 }
 
 /* Where the art sits: the half of the screen the text is not on. */
-html { --art-x: 75%; --art-y: 50%; }
+html { --art-x: 75%; --art-y: 50%; --screen-w: min(40vw, 72vh); }
 html[data-side='left'] { --art-x: 25%; }
 
+.art-wall, .art-dots, .art-word, .screen, .osd { pointer-events: none; }
+.art-wall {
+  position: absolute;
+  inset: 0;
+  /* A few flat poster-strips on the wall, in base tones only. */
+  background:
+    linear-gradient(100deg, transparent 0 58%, rgba(13, 12, 11, 0.16) 58% 59.2%, transparent 59.2%),
+    linear-gradient(100deg, transparent 0 8%, rgba(13, 12, 11, 0.1) 8% 20%, transparent 20%);
+}
 .art-dots {
   position: absolute;
   inset: 0;
   background-image: radial-gradient(currentColor 30%, transparent 32%);
-  background-size: 15px 15px;
-  opacity: 0.2;
-  -webkit-mask-image: linear-gradient(115deg, transparent 20%, #000 95%);
-  mask-image: linear-gradient(115deg, transparent 20%, #000 95%);
+  background-size: 14px 14px;
+  opacity: 0.16;
+  -webkit-mask-image: linear-gradient(115deg, transparent 25%, #111 95%);
+  mask-image: linear-gradient(115deg, transparent 25%, #111 95%);
 }
-
-.art-word, .art-sigil, .art-dots { pointer-events: none; }
 .art-word {
   position: absolute;
   left: var(--art-x);
   top: 50%;
   margin: 0;
   transform: translate(-50%, -50%) rotate(-7deg);
-  font: 400 clamp(15rem, 33vw, 42rem) / 0.8 var(--display);
-  letter-spacing: 0.01em;
+  font: italic 800 clamp(16rem, 36vw, 46rem) / 0.8 var(--display);
   white-space: nowrap;
   color: transparent;
-  -webkit-text-stroke: 3px var(--field-ink);
-  opacity: 0.5;
+  -webkit-text-stroke: 3px var(--wall-ink);
+  opacity: 0.32;
   user-select: none;
 }
 
-.art-sigil {
+/* Screen, 3D set and display move together when the picture rolls. */
+.art-set { position: absolute; inset: 0; will-change: transform; }
+
+/* The screen: a hard-edged 4:3 frame. The set is taller than it and breaks out. */
+.screen {
   position: absolute;
   left: var(--art-x);
   top: var(--art-y);
-  width: min(78vh, 46vw);
-  aspect-ratio: 1;
-  margin: calc(min(78vh, 46vw) / -2) 0 0 calc(min(78vh, 46vw) / -2);
-  opacity: 0.9;
-  /* Turns one step when the section changes, then rests. Nothing here moves on its own. */
-  transform: rotate(var(--turn, 0deg));
-  transition: transform 0.9s var(--snap);
+  width: var(--screen-w);
+  aspect-ratio: 4 / 3;
+  transform: translate(-50%, -50%) rotate(-2deg);
+  background:
+    repeating-linear-gradient(0deg, rgba(13, 12, 11, 0.34) 0 2px, transparent 2px 4px),
+    var(--char);
+  border: 4px solid var(--ink);
+  box-shadow: 10px 10px 0 var(--ink);
 }
-.art-sigil-text { font: 700 17px var(--label); letter-spacing: 0.34em; }
+/* Corner brackets in the channel's accent. */
+.screen::before, .screen::after {
+  content: '';
+  position: absolute;
+  width: 34px;
+  height: 34px;
+  border: 4px solid var(--accent);
+}
+.screen::before { left: 12px; top: 12px; border-right: 0; border-bottom: 0; }
+.screen::after { right: 12px; bottom: 12px; border-left: 0; border-top: 0; }
+.screen-tab {
+  position: absolute;
+  left: -4px;
+  top: -30px;
+  padding: 4px 10px 3px;
+  background: var(--ink);
+  color: var(--paper);
+  font: 700 0.68rem var(--mono);
+  letter-spacing: 0.2em;
+}
+.screen-stripe {
+  position: absolute;
+  left: -4px;
+  right: 38%;
+  bottom: -18px;
+  height: 14px;
+  background: repeating-linear-gradient(-45deg, var(--ink) 0 8px, var(--yellow) 8px 16px);
+  border: 2px solid var(--ink);
+}
 
 #scene {
   position: absolute;
@@ -62,22 +103,55 @@ html[data-side='left'] { --art-x: 25%; }
   display: block;
   opacity: 0;
   transform: scale(0.94);
-  transition: opacity 0.35s, transform 0.6s var(--snap);
+  transition: opacity 0.2s steps(3), transform 0.45s var(--boing);
 }
 html.scene-ready #scene { opacity: 1; transform: none; }
 
-/* The slanted block that crosses the art layer when the section changes. */
-.art-wipe {
+/* On-screen display, as a VCR prints it: mono, accent colour, hard ink edge. */
+.osd {
   position: absolute;
-  inset: -12% -34%;
-  background: var(--ink);
-  border-right: 14px solid var(--lime);
-  transform: translateX(-135%) skewX(-14deg);
-  will-change: transform;
-  pointer-events: none;
+  left: var(--art-x);
+  top: var(--art-y);
+  width: var(--screen-w);
+  aspect-ratio: 4 / 3;
+  transform: translate(-50%, -50%) rotate(-2deg);
+  color: var(--accent);
+  font: 700 0.82rem var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-shadow: 2px 2px 0 var(--ink), -1px -1px 0 var(--ink), 1px -1px 0 var(--ink), -1px 1px 0 var(--ink);
 }
+.osd span { position: absolute; }
+.osd i { font-style: normal; opacity: 0.8; margin-left: 8px; }
+.osd-play { left: 58px; top: 18px; }
+.osd-channel { right: 20px; top: 16px; font-size: 1.2rem; text-align: right; }
+.osd-channel b { display: block; font-size: 0.7rem; letter-spacing: 0.2em; }
+.osd-code { left: 20px; bottom: 16px; font-size: 0.7rem; }
 
-/* Clickable labels pinned to the 3D objects on the opening view. */
+/* Channel flip: TV static with tracking bars, shown for a few frames. */
+.art-flip {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(0deg, transparent 0 46px, rgba(236, 231, 218, 0.5) 46px 52px, transparent 52px 130px),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='1' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.9 0 0 0 0 0.9 0 0 0 0 0.86 1.6 0 0 0 -0.55'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+    var(--char);
+}
+#flip-channel {
+  padding: 0 0.16em;
+  background: var(--ink);
+  color: var(--accent);
+  font: italic 800 clamp(5rem, 13vw, 14rem) / 0.9 var(--display);
+  transform: skewX(-8deg) translateX(var(--art-shift, 0));
+}
+html { --art-shift: 25vw; }
+html[data-side='left'] { --art-shift: -25vw; }
+
+/* Clickable labels pinned to the 3D objects on the opening view: small stickers. */
 .art-tags { position: absolute; inset: 0; pointer-events: none; }
 .pin {
   position: absolute;
@@ -86,29 +160,32 @@ html.scene-ready #scene { opacity: 1; transform: none; }
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 10px 6px 8px;
-  border: 0;
-  background: var(--ink);
-  color: var(--paper);
-  font: 700 0.7rem var(--label);
-  letter-spacing: 0.12em;
+  padding: 5px 9px 4px 7px;
+  border: 2px solid var(--ink);
+  background: var(--paper);
+  color: var(--ink);
+  font: 700 0.66rem var(--mono);
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   cursor: pointer;
   pointer-events: auto;
-  box-shadow: 4px 4px 0 var(--magenta);
+  box-shadow: 3px 3px 0 var(--ink);
   opacity: 0;
-  transition: opacity 0.25s, box-shadow 0.12s;
+  scale: 0.4;
+  transition: opacity 0.12s steps(2), scale 0.3s var(--boing), background 0.1s;
 }
-.pin b { color: var(--yellow); }
-.pin::after { content: ''; position: absolute; left: 12px; top: 100%; width: 3px; height: 16px; background: var(--ink); }
-html.scene-ready[data-art='intro'] .pin { opacity: 1; }
+.pin b { padding: 0 4px; background: var(--ink); color: var(--paper); }
+.pin::after { content: ''; position: absolute; left: 12px; top: 100%; width: 2px; height: 14px; background: var(--ink); }
+html.scene-ready[data-art='intro'] .pin { opacity: 1; scale: 1; }
 html:not([data-art='intro']) .pin { pointer-events: none; }
-.pin:hover, .pin.is-hot { background: var(--magenta); color: var(--ink); box-shadow: 4px 4px 0 var(--ink); }
-.pin:hover b, .pin.is-hot b { color: var(--ink); }
+.pin:hover, .pin.is-hot { background: var(--yellow); }
 
 @media (max-width: 860px) {
-  html, html[data-side='left'] { --art-x: 50%; --art-y: calc(var(--bar) + 21svh); }
+  html, html[data-side='left'] { --art-x: 50%; --art-y: calc(var(--bar) + 21svh); --screen-w: min(84vw, 44svh); --art-shift: 0; }
   .art-word { top: var(--art-y); font-size: clamp(9rem, 52vw, 20rem); }
-  .art-sigil { width: 40svh; margin: -20svh 0 0 -20svh; }
+  .art-flip { align-items: start; padding-top: calc(var(--bar) + 12svh); }
+  .osd { font-size: 0.66rem; }
+  .osd-channel { font-size: 0.9rem; }
+  .osd-play { left: 50px; top: 12px; }
   .pin { display: none; }
 }

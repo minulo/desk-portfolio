@@ -1,175 +1,234 @@
-/* ---------- small labels ---------- */
+/* ---------- small labels: mono, technical ---------- */
 .label {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 12px;
-  font: 700 0.74rem var(--label);
-  letter-spacing: 0.18em;
+  color: var(--mute);
+  font: 700 0.7rem var(--mono);
+  letter-spacing: 0.14em;
   text-transform: uppercase;
 }
-.chip { padding: 5px 9px 4px; font: inherit; }
-.chip--yellow { background: var(--yellow); color: var(--ink); }
-.num {
-  padding: 3px 10px 0;
-  background: var(--hl);
+/* Knocked out of the accent: ink on a flat colour block, slightly skewed. */
+.chip, .num {
+  padding: 4px 9px 3px;
+  background: var(--accent);
   color: var(--ink);
-  font: 400 1.5rem / 1.15 var(--display);
-  letter-spacing: 0.02em;
+  font: inherit;
+  transform: skewX(-8deg);
 }
-.block--magenta .num, .block--crimson .num { background: var(--ink); color: var(--paper); }
+.num { font: italic 800 1.5rem / 1.1 var(--display); letter-spacing: 0.01em; padding: 2px 10px 0; }
 
-.role { font: 700 0.86rem var(--label); letter-spacing: 0.14em; text-transform: uppercase; }
-.role b { color: var(--hl); }
+.role { font: 700 0.8rem var(--mono); letter-spacing: 0.1em; text-transform: uppercase; }
+.role b { color: var(--accent); }
 .lede { font-size: 1.14rem; line-height: 1.5; }
 
-/* ---------- buttons: flat blocks with a hard shadow ---------- */
+/* Stamped serial with a barcode: packaging detail at the foot of each panel. */
+.stamp { display: flex; align-items: center; gap: 12px; padding-top: 14px; color: var(--mute); }
+.serial { font: 400 0.64rem var(--mono); letter-spacing: 0.14em; text-transform: uppercase; }
+.barcode {
+  flex: none;
+  width: 96px;
+  height: 24px;
+  background: repeating-linear-gradient(90deg,
+    currentColor 0 2px, transparent 2px 3px, currentColor 3px 4px, transparent 4px 7px,
+    currentColor 7px 10px, transparent 10px 11px, currentColor 11px 12px, transparent 12px 15px,
+    currentColor 15px 16px, transparent 16px 19px);
+}
+
+/* ---------- buttons: flat blocks with a hard shadow, and a little bounce ---------- */
 .actions, .lines { display: flex; flex-wrap: wrap; gap: 16px 18px; }
 .btn {
   display: inline-flex;
   align-items: center;
   gap: 10px;
   padding: 13px 18px 12px;
-  border: var(--edge) solid var(--btn-edge, currentColor);
-  box-shadow: 6px 6px 0 var(--btn-shadow, currentColor);
-  font: 700 0.82rem / 1 var(--label);
-  letter-spacing: 0.14em;
+  background: var(--bg);
+  color: var(--fg);
+  border: var(--edge) solid var(--fg);
+  box-shadow: 6px 6px 0 var(--concrete);
+  font: 700 0.76rem / 1 var(--mono);
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   text-decoration: none;
-  transition: transform 0.12s var(--snap), box-shadow 0.12s var(--snap);
+  transition: translate 0.2s var(--boing), box-shadow 0.2s var(--boing), scale 0.12s var(--snap);
 }
-.btn small { font-size: 0.7em; letter-spacing: 0.1em; }
+.btn small { font-size: 0.72em; letter-spacing: 0.08em; }
 .btn svg { width: 17px; height: 17px; flex: none; fill: currentColor; }
-.btn:hover { transform: translate(-3px, -3px); box-shadow: 9px 9px 0 var(--btn-shadow, currentColor); }
-.btn:active { transform: translate(4px, 4px); box-shadow: 2px 2px 0 var(--btn-shadow, currentColor); }
-.btn--yellow { background: var(--yellow); color: var(--ink); --btn-edge: var(--yellow); --btn-shadow: var(--magenta); }
-.btn--ghost { color: var(--paper); --btn-edge: var(--paper); --btn-shadow: var(--yellow); }
-.btn--ink { background: var(--ink); color: var(--paper); --btn-edge: var(--ink); --btn-shadow: var(--paper); }
-.btn--paper { background: var(--paper); color: var(--ink); --btn-edge: var(--ink); --btn-shadow: var(--ink); }
+.btn:hover { translate: -3px -3px; box-shadow: 9px 9px 0 var(--concrete); }
+.btn:active { translate: 3px 3px; scale: 1.05 0.9; box-shadow: 2px 2px 0 var(--concrete); } /* squash */
+.btn--accent { background: var(--accent); color: var(--ink); border-color: var(--ink); box-shadow: 6px 6px 0 var(--fg); }
+.btn--accent:hover { box-shadow: 9px 9px 0 var(--fg); }
+.btn--accent:active { box-shadow: 2px 2px 0 var(--fg); }
 
 /* ---------- intro: numbered index ---------- */
 .index { display: flex; flex-wrap: wrap; gap: 4px 20px; padding-top: 16px; border-top: 2px solid var(--line); }
-.index a { font: 700 0.74rem var(--label); letter-spacing: 0.16em; text-transform: uppercase; text-decoration: none; }
-.index a b { margin-right: 7px; color: var(--hl); }
-.index a:hover { color: var(--hl); }
+.index a { font: 700 0.7rem var(--mono); letter-spacing: 0.12em; text-transform: uppercase; text-decoration: none; }
+.index a b { margin-right: 7px; color: var(--accent); }
+.index a:hover { color: var(--accent); }
 
 /* ---------- who ---------- */
-.notice { border: var(--edge) solid var(--ink); background: var(--paper); }
+/* A comic speech panel: hard border, a tail, halftone in one corner. */
+.speech {
+  position: relative;
+  padding: 16px 18px;
+  background: var(--card);
+  border: var(--edge) solid var(--fg);
+  box-shadow: 6px 6px 0 var(--fg);
+  font-weight: 500;
+  font-size: 1.06rem;
+}
+.speech::before {
+  content: '';
+  position: absolute;
+  left: 34px;
+  bottom: -19px;
+  width: 26px;
+  height: 19px;
+  background: var(--fg);
+  clip-path: polygon(0 0, 100% 0, 18% 100%);
+}
+.speech::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 84px;
+  height: 100%;
+  background-image: radial-gradient(var(--accent) 34%, transparent 36%);
+  background-size: 9px 9px;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #111);
+  mask-image: linear-gradient(90deg, transparent, #111);
+  pointer-events: none;
+}
+.speech + p { margin-top: 30px; }
+
+.notice { border: var(--edge) solid var(--fg); background: var(--card); }
 .notice-head {
   padding: 6px 12px 5px;
   color: var(--ink);
-  background:
-    linear-gradient(var(--yellow), var(--yellow)) left / calc(100% - 96px) 100% no-repeat,
-    repeating-linear-gradient(-45deg, var(--ink) 0 8px, var(--yellow) 8px 16px);
-  border-bottom: var(--edge) solid var(--ink);
-  font: 700 0.72rem var(--label);
-  letter-spacing: 0.2em;
+  /* Yellow is the background colour proper; the hazard stripe is only the last 96px. */
+  background: repeating-linear-gradient(-45deg, var(--ink) 0 8px, var(--yellow) 8px 16px) right / 96px 100% no-repeat var(--yellow);
+  border-bottom: var(--edge) solid var(--fg);
+  font: 700 0.68rem var(--mono);
+  letter-spacing: 0.16em;
   text-transform: uppercase;
 }
 .notice p:not(.notice-head) { padding: 12px 14px 14px; font-size: 0.95rem; max-width: none; }
 
-.facts { display: grid; border-top: 2px solid var(--ink); }
+.facts { display: grid; border-top: 2px solid var(--fg); }
 .facts div { display: grid; grid-template-columns: 84px 1fr; gap: 12px; padding: 8px 0; border-bottom: 2px solid var(--line); }
-.facts dt { font: 700 0.72rem var(--label); letter-spacing: 0.16em; text-transform: uppercase; padding-top: 3px; }
+.facts dt { font: 700 0.68rem var(--mono); letter-spacing: 0.12em; text-transform: uppercase; padding-top: 4px; color: var(--mute); }
 .facts dd { font-weight: 500; }
 
-.badges { display: flex; flex-wrap: wrap; gap: 12px 12px; }
+/* Badges: round-cornered stickers in base tones; one carries the accent. */
+.badges { display: flex; flex-wrap: wrap; gap: 12px; }
 .badges li {
   padding: 7px 12px 6px;
   border: var(--edge) solid var(--ink);
   border-radius: 999px;
   background: var(--ink);
   color: var(--paper);
-  font: 700 0.72rem var(--label);
-  letter-spacing: 0.1em;
+  font: 700 0.66rem var(--mono);
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  box-shadow: 4px 4px 0 var(--magenta);
+  box-shadow: 4px 4px 0 var(--concrete);
+  transition: scale 0.25s var(--boing), rotate 0.25s var(--boing);
 }
-.badges li b { color: var(--yellow); margin-left: 6px; }
-.badges li:nth-child(1) { transform: rotate(-2deg); }
-.badges li:nth-child(2) { transform: rotate(1.5deg); background: var(--yellow); color: var(--ink); box-shadow: 4px 4px 0 var(--ink); }
-.badges li:nth-child(3) { transform: rotate(-1deg); background: var(--paper); color: var(--ink); box-shadow: 4px 4px 0 var(--ink); }
+.badges li b { color: var(--accent); margin-left: 6px; }
+.badges li:nth-child(1) { rotate: -2deg; }
+.badges li:nth-child(2) { rotate: 1.5deg; background: var(--accent); color: var(--ink); }
+.badges li:nth-child(3) { rotate: -1deg; background: var(--card); color: var(--ink); }
+.badges li:hover { scale: 1.08; rotate: 0deg; }
 
-/* ---------- drops ---------- */
+/* ---------- drops: tape-label cards ---------- */
 .drops { display: grid; gap: 22px; }
 .drop {
+  position: relative;
   display: grid;
   gap: 8px;
-  padding: 16px 18px 15px;
+  padding: 16px 18px 15px 26px;
   background: var(--paper);
   color: var(--ink);
-  box-shadow: 8px 8px 0 var(--yellow);
+  box-shadow: 8px 8px 0 var(--concrete-2);
   text-decoration: none;
-  transition: transform 0.14s var(--snap), box-shadow 0.14s var(--snap);
+  transition: translate 0.2s var(--boing), box-shadow 0.2s var(--boing);
 }
-.drop:hover { transform: translate(-4px, -4px); box-shadow: 12px 12px 0 var(--magenta); }
-.drop-no { justify-self: start; padding: 3px 8px 2px; background: var(--ink); color: var(--yellow); font: 700 0.68rem var(--label); letter-spacing: 0.2em; text-transform: uppercase; }
-.drop h3 { font: 400 clamp(1.7rem, 2.6vw, 2.5rem) / 0.95 var(--display); letter-spacing: 0.01em; }
+/* The spine of the tape, in the channel's colour. */
+.drop::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 10px; background: var(--accent); }
+.drop:hover { translate: -4px -4px; box-shadow: 12px 12px 0 var(--accent); }
+.drop-no { justify-self: start; padding: 3px 8px 2px; background: var(--ink); color: var(--paper); font: 700 0.64rem var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+.drop h3 { font: italic 800 clamp(1.9rem, 2.8vw, 2.7rem) / 0.9 var(--display); letter-spacing: 0; }
 .drop p { font-size: 0.94rem; line-height: 1.45; max-width: none; }
-.drop-meta { font: 500 0.74rem var(--label); letter-spacing: 0.08em; text-transform: uppercase; }
-.drop-meta b { margin-right: 10px; padding: 2px 6px 1px; background: var(--magenta); font-weight: 700; }
-.drop-go { justify-self: end; font: 700 0.74rem var(--label); letter-spacing: 0.16em; text-transform: uppercase; border-bottom: var(--edge) solid var(--ink); }
+.drop-meta { font: 400 0.68rem var(--mono); letter-spacing: 0.04em; text-transform: uppercase; }
+.drop-meta b { margin-right: 10px; padding: 2px 6px 1px; background: var(--accent); font-weight: 700; }
+.drop-go { justify-self: end; font: 700 0.7rem var(--mono); letter-spacing: 0.12em; text-transform: uppercase; border-bottom: var(--edge) solid var(--ink); }
 
-.sub { margin-top: 34px; padding-top: 14px; border-top: 2px solid var(--line); font-size: 0.86rem; }
-.sub small { margin-left: 10px; font-weight: 500; letter-spacing: 0.1em; }
+.sub { margin-top: 34px; padding-top: 14px; border-top: 2px solid var(--line); font-size: 0.8rem; }
+.sub small { margin-left: 10px; font-weight: 400; letter-spacing: 0.06em; color: var(--mute); }
 .collabs li { border-bottom: 2px solid var(--line); }
-.collabs a { display: grid; grid-template-columns: 1fr auto; gap: 2px 14px; padding: 10px 0; text-decoration: none; transition: padding 0.14s var(--snap); }
-.collabs a:hover { padding-left: 10px; color: var(--hl); }
-.collabs b { font: 700 0.86rem var(--label); letter-spacing: 0.04em; overflow-wrap: anywhere; }
-.collabs i { font: 700 0.64rem var(--label); font-style: normal; letter-spacing: 0.16em; text-transform: uppercase; color: var(--hl); padding-top: 3px; }
-.collabs span { grid-column: 1 / -1; font-size: 0.86rem; }
+.collabs a { display: grid; grid-template-columns: 1fr auto; gap: 2px 14px; padding: 10px 0; text-decoration: none; transition: padding 0.18s var(--boing); }
+.collabs a:hover { padding-left: 10px; color: var(--accent); }
+.collabs b { font: 700 0.8rem var(--mono); overflow-wrap: anywhere; }
+.collabs i { font: 700 0.6rem var(--mono); font-style: normal; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); padding-top: 3px; }
+.collabs span { grid-column: 1 / -1; font-size: 0.86rem; color: var(--mute); }
 
 /* ---------- tour: a list of dates, like the back of a tour shirt ---------- */
 .tour li {
   display: grid;
-  grid-template-columns: 148px minmax(0, 1fr) auto;
+  grid-template-columns: 158px minmax(0, 1fr) auto;
   gap: 0 14px;
   align-items: baseline;
   padding: 9px 0 8px;
   border-bottom: 2px dashed var(--line);
 }
-.tour time { grid-row: span 2; font: 700 0.74rem var(--label); letter-spacing: 0.08em; white-space: nowrap; }
+.tour time { grid-row: span 2; font: 700 0.7rem var(--mono); letter-spacing: 0.04em; white-space: nowrap; color: var(--mute); }
 .tour b { font-weight: 700; font-size: 1.02rem; line-height: 1.25; overflow-wrap: anywhere; }
-.tour span { grid-column: 2; font-size: 0.86rem; }
-.tour i { grid-column: 3; grid-row: 1 / span 2; align-self: center; font: 700 0.64rem var(--label); font-style: normal; letter-spacing: 0.14em; text-transform: uppercase; text-align: right; }
-.tour .is-now time { justify-self: start; padding: 3px 7px 2px; background: var(--yellow); color: var(--ink); }
+.tour span { grid-column: 2; font-size: 0.86rem; color: var(--mute); }
+.tour i { grid-column: 3; grid-row: 1 / span 2; align-self: center; font: 700 0.6rem var(--mono); font-style: normal; letter-spacing: 0.1em; text-transform: uppercase; text-align: right; color: var(--mute); }
+.tour .is-now time { justify-self: start; padding: 3px 7px 2px; background: var(--accent); color: var(--ink); }
 
-/* ---------- kit: stickers ---------- */
-.kit h3 { margin: 22px 0 12px; }
+/* ---------- kit: stickers. Base tones; every fifth one carries the accent. ---------- */
+.kit h3 { margin: 22px 0 12px; color: var(--mute); }
 .kit h3:first-child { margin-top: 0; }
-.stickers { display: flex; flex-wrap: wrap; gap: 12px 12px; }
+.stickers { display: flex; flex-wrap: wrap; gap: 12px; }
 .stickers li {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   padding: 8px 12px 7px 10px;
   border: var(--edge) solid var(--ink);
-  background: var(--paper);
+  background: var(--card);
   color: var(--ink);
   box-shadow: 4px 4px 0 var(--ink);
-  font: 700 0.76rem / 1 var(--label);
-  letter-spacing: 0.08em;
+  font: 700 0.7rem / 1 var(--mono);
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 .stickers svg { width: 18px; height: 18px; flex: none; fill: currentColor; }
-.stickers li:nth-child(4n + 1) { background: var(--yellow); transform: rotate(-2deg); }
-.stickers li:nth-child(4n + 2) { background: var(--ink); color: var(--paper); box-shadow: 4px 4px 0 var(--magenta); transform: rotate(1.4deg); }
-.stickers li:nth-child(4n + 3) { background: var(--magenta); transform: rotate(-0.8deg); }
-.stickers li:nth-child(4n + 4) { transform: rotate(2.2deg); }
+.stickers li:nth-child(3n + 1) { rotate: -2deg; }
+.stickers li:nth-child(3n + 2) { background: var(--ink); color: var(--paper); box-shadow: 4px 4px 0 var(--concrete); rotate: 1.4deg; }
+.stickers li:nth-child(3n) { rotate: -0.8deg; }
+.stickers li:nth-child(5n + 1) { background: var(--accent); color: var(--ink); box-shadow: 4px 4px 0 var(--ink); }
+.stickers li:hover { animation: boing 0.36s var(--snap); }
+@keyframes boing { 30% { scale: 1.14 0.88; } 60% { scale: 0.94 1.08; } 100% { scale: 1; } }
 
 /* ---------- hotline ---------- */
 .mail {
   align-self: flex-start;
   max-width: 100%;
   padding-bottom: 4px;
-  border-bottom: 5px solid var(--ink);
-  font: 700 clamp(1.3rem, 2.7vw, 2.7rem) / 1.15 var(--label);
-  letter-spacing: -0.01em;
+  border-bottom: 5px solid var(--accent);
+  font: 700 clamp(1.1rem, 2.3vw, 2.3rem) / 1.2 var(--mono);
+  letter-spacing: -0.03em;
   text-decoration: none;
   overflow-wrap: anywhere;
 }
-.mail:hover { background: var(--ink); color: var(--paper); }
-.foot { padding-top: 26px; font: 700 0.68rem var(--label); letter-spacing: 0.2em; text-transform: uppercase; }
+.mail:hover { background: var(--accent); color: var(--ink); }
+
+/* A section's heading slams in when its channel comes up. */
+section.is-live h2 { animation: slam 0.34s var(--boing) both; }
+@keyframes slam { from { transform: translateX(-28px) skewX(-14deg) scaleY(0.82); } }
 
 /* Narrow columns (small laptops, tablets, phones): the date gets its own line. */
 @media (max-width: 1240px) {
@@ -182,4 +241,5 @@
 @media (max-width: 860px) {
   .facts div { grid-template-columns: 72px 1fr; }
   .lede { font-size: 1.05rem; }
+  .stamp { flex-wrap: wrap; }
 }

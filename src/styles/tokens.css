@@ -1,27 +1,45 @@
-/* The whole palette. Stark neutrals plus a few loud accents; one accent leads each section. */
+/* Two layers of colour.
+   BASE: a quiet, low-saturation city. Most of every screen. Never pure black or white.
+   ACCENT: small, loud, flat, like printed ink or neon. One per element, one per section. */
 :root {
-  --ink: #0b0b0c;
-  --paper: #f2efe6;
-  --concrete: #8d8d86;
-  --yellow: #ffd400;   /* hazard yellow */
-  --magenta: #ff2e88;  /* electric magenta */
-  --crimson: #c81e36;
-  --lime: #b6ff3c;     /* neon: focus rings and small highlights only */
+  --black: #0d0c0b;       /* near-black, warm */
+  --char: #1d1b19;        /* warm charcoal */
+  --char-2: #2b2825;
+  --concrete: #8c8880;
+  --concrete-2: #5c5953;
+  --paper: #ece7da;       /* off-white */
+  --ink: #141312;         /* text and lines on paper */
+  --dim: #b9b4a8;         /* secondary text on dark */
+  --dim-ink: #4a4640;     /* secondary text on paper */
 
-  --display: 'Anton', Impact, 'Haettenschweiler', 'Arial Narrow Bold', sans-serif;
-  --label: 'Chakra Petch', 'Arial Narrow', ui-monospace, sans-serif;
+  --yellow: #ffd400;      /* hazard yellow: the lead accent */
+  --crimson: #ff2a44;
+  --magenta: #ff2e88;
+  --cyan: #19e0ff;
+  --acid: #b6ff3c;        /* acid green; also the keyboard focus colour */
+  --accent: var(--yellow);
+
+  --display: 'Barlow Condensed', 'Arial Narrow', Impact, sans-serif;
+  --mono: 'Space Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
   --body: 'Space Grotesk Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 
   --pad: clamp(20px, 4.4vw, 76px);
   --bar: 68px;
-  --slant: 4.5vw;      /* how far the blocks' inner edges lean */
-  --edge: 3px;         /* border weight */
+  --slant: 4.5vw;         /* how far the blocks' inner edges lean */
+  --edge: 3px;            /* border weight */
   --snap: cubic-bezier(0.2, 0.9, 0.2, 1);
+  --boing: cubic-bezier(0.34, 1.56, 0.64, 1); /* overshoots, then settles */
 }
 
-/* The art layer's field colour and line colour, set by the section on show. */
-html { --field: var(--yellow); --field-ink: var(--ink); }
-html[data-accent='magenta'] { --field: var(--magenta); --field-ink: var(--ink); }
-html[data-accent='paper'] { --field: var(--paper); --field-ink: var(--ink); }
-html[data-accent='ink'] { --field: var(--ink); --field-ink: var(--yellow); }
-html[data-art='contact'] { --field-ink: var(--magenta); }
+/* A section, or the whole page while that section is on screen, owns one accent. */
+[data-accent='yellow'] { --accent: var(--yellow); }
+[data-accent='crimson'] { --accent: var(--crimson); }
+[data-accent='magenta'] { --accent: var(--magenta); }
+[data-accent='cyan'] { --accent: var(--cyan); }
+[data-accent='acid'] { --accent: var(--acid); }
+
+/* The wall behind the screen changes tone with the channel, staying in the base range. */
+html { --wall: var(--concrete); --wall-ink: var(--ink); }
+html[data-art='about'], html[data-art='contact'] { --wall: var(--char-2); --wall-ink: var(--concrete); }
+html[data-art='drops'] { --wall: var(--concrete-2); --wall-ink: var(--ink); }
+html[data-art='tour'] { --wall: #3b3834; --wall-ink: var(--concrete); }

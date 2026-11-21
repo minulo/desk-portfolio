@@ -142,6 +142,7 @@ test('smoothNormals keeps a usable normal when the shared normals cancel out', (
 
 // ---------- renderScale ----------
 import { renderScale } from '../src/lib/render-scale.js';
+import { featureCamera } from '../src/lib/feature-view.js';
 
 test('renderScale keeps a Retina laptop canvas within the pixel budget', () => {
   const scale = renderScale(1512, 982, 2);
@@ -222,4 +223,33 @@ test('cancelling one tracked tween leaves the other counted', () => {
   tracker.run({ duration: 1000, onFrame() {} });
   cancelFirst();
   assert.equal(tracker.active, 1);
+});
+
+// ---------- featureCamera ----------
+const ball = { centre: [1, 0.5, -2], radius: 0.3, from: [0, 0], fill: 0.5, fov: 30 };
+const standOff = (v) => Math.hypot(v.camera[0] - v.target[0], v.camera[1] - v.target[1], v.camera[2] - v.target[2]);
+
+test('featureCamera looks at the centre of the object', () => {
+  assert.deepEqual(featureCamera(ball).target, [1, 0.5, -2]);
+});
+
+test('featureCamera stands back far enough that the object spans `fill` of the view height', () => {
+  // At distance d the view is 2 * d * tan(fov / 2) tall; the object is 2 * radius.
+  const viewHeight = 2 * standOff(featureCamera(ball)) * Math.tan((30 * Math.PI) / 360);
+  assert.ok(Math.abs((2 * 0.3) / viewHeight - 0.5) < 1e-9);
+});
+
+test('featureCamera with a smaller fill puts the camera further away', () => {
+  assert.ok(standOff(featureCamera({ ...ball, fill: 0.25 })) > standOff(featureCamera(ball)));
+});
+
+test('featureCamera with no turn and no tilt is straight in front, on +z', () => {
+  const v = featureCamera(ball);
+  assert.ok(Math.abs(v.camera[0] - 1) < 1e-9 && Math.abs(v.camera[1] - 0.5) < 1e-9 && v.camera[2] > -2);
+});
+
+test('featureCamera: a quarter turn moves it to +x, and tilting raises it', () => {
+  const side = featureCamera({ ...ball, from: [90, 0] });
+  assert.ok(side.camera[0] > 1 && Math.abs(side.camera[2] + 2) < 1e-9);
+  assert.ok(featureCamera({ ...ball, from: [0, 40] }).camera[1] > 0.5);
 });

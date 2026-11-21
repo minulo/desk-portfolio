@@ -92,6 +92,40 @@ describe('in the browser', { skip }, () => {
   const untilSettled = (page, allowedSelector = null) => page.waitForFunction((sel) => document.getAnimations()
     .filter((a) => a.playState === 'running')
     .every((a) => sel && a.effect?.target?.closest(sel)), allowedSelector, { timeout: 15000 });
+  /** Text whose contrast against its block's background is below WCAG AA. */
+  const contrastFailures = (page) => page.evaluate(() => {
+        const parse = (str) => { const p = /rgba?\(([^)]+)\)/.exec(str)[1].split(/[,\s/]+/).map(Number); return { rgb: p.slice(0, 3), a: p[3] ?? 1 }; };
+        const lum = (c) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
+        const out = [];
+        for (const el of document.querySelectorAll('main .block *')) {
+          const own = [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim());
+          if (!own || el.closest('[aria-hidden="true"]')) continue;
+          const cs = getComputedStyle(el);
+          const fg = parse(cs.color);
+          let alpha = fg.a;
+          let bg = null;
+          for (let n = el; n; n = n.parentElement) {
+            const ns = getComputedStyle(n);
+            alpha *= parseFloat(ns.opacity);
+            if (!bg) { const b = parse(ns.backgroundColor); if (b.a > 0.99) bg = b.rgb; }
+            if (n.classList.contains('block')) break;
+          }
+          if (!bg) continue;
+          const seen = fg.rgb.map((v, i) => v * alpha + bg[i] * (1 - alpha));
+          const [hi, lo] = [lum(seen), lum(bg)].sort((a, b) => b - a);
+          const ratio = (hi + 0.05) / (lo + 0.05);
+          const size = parseFloat(cs.fontSize);
+          const large = size >= 24 || (size >= 18.66 && Number(cs.fontWeight) >= 700);
+          if (ratio < (large ? 3 : 4.5)) out.push(`${el.tagName}.${el.className} "${el.textContent.trim().slice(0, 22)}" ${ratio.toFixed(2)}:1 (needs ${large ? 3 : 4.5})`);
+        }
+        return [...new Set(out)];
+      });
+
+  /** Where an object is on screen: its label carries the projected centre of the object. */
+  const objectSpot = (page, labelText) => page.evaluate((text) => {
+    const pin = [...document.querySelectorAll('.pin')].find((el) => el.textContent.includes(text));
+    return pin ? { x: Number(pin.dataset.cx), y: Number(pin.dataset.cy) } : null;
+  }, labelText);
   const goTo = (page, id) => page.evaluate((id) => document.getElementById(id).scrollIntoView({ behavior: 'instant', block: 'start' }), id);
 
   async function visibleHeadings(page) {
@@ -247,8 +281,8 @@ describe('in the browser', { skip }, () => {
       await p.route('**/scene.config.js*', async (route) => {
         const response = await route.fetch();
         const original = await response.text();
-        const body = original.replace("id: 'mug', model: null", "id: 'mug', model: '/__fixture/box.gltf'");
-        assert.notEqual(body, original, 'the config has a mug entry with `model: null` to replace');
+        const body = original.replace("id: 'cassette', model: null", "id: 'cassette', model: '/__fixture/box.gltf'");
+        assert.notEqual(body, original, 'the config has a cassette entry with `model: null` to replace');
         await route.fulfill({ response, body });
       });
     };
@@ -289,12 +323,8 @@ describe('in the browser', { skip }, () => {
     await withPage({ viewport: { width: 1440, height: 900 } }, {}, async (page) => {
       await sceneReady(page);
       await page.waitForTimeout(800);
-      // The monitor stands just below its label.
-      const spot = await page.evaluate(() => {
-        const pin = [...document.querySelectorAll('.pin')].find((el) => el.textContent.includes('Drops'));
-        const r = pin.getBoundingClientRect();
-        return { x: r.left + 20, y: r.bottom + 70 };
-      });
+      const spot = await objectSpot(page, 'Drops');
+      assert.ok(spot && spot.x > 0 && spot.y > 0, 'the Drops object reports where it is');
       await page.mouse.move(spot.x - 60, spot.y + 150);
       await page.mouse.move(spot.x, spot.y, { steps: 6 });
       await page.waitForTimeout(500);
@@ -302,6 +332,56 @@ describe('in the browser', { skip }, () => {
       await page.mouse.click(spot.x, spot.y);
       await page.waitForTimeout(2500);
       assert.equal(await page.evaluate(() => document.documentElement.dataset.section), 'drops');
+    });
+  });
+
+  test('every channel after the opening one features a single object by itself', async () => {
+    await withPage({ viewport: { width: 1440, height: 900 } }, {}, async (page) => {
+      await sceneReady(page);
+      const state = () => page.evaluate(() => { const c = document.getElementById('scene'); return { shown: c.dataset.shown, feature: c.dataset.feature ?? null }; });
+      const drawsPerFrame = async (action) => {
+        const a = await gl(page);
+        await action();
+        await page.waitForFunction((frames) => window.__gl.frames > frames, a.frames, { timeout: 10000 });
+        await untilSettled(page, '.tape'); // the tape on the opening screen never stops
+        await page.waitForTimeout(600);
+        const b = await gl(page);
+        return (b.draws - a.draws) / (b.frames - a.frames);
+      };
+      assert.deepEqual(await state(), { shown: 'intro', feature: null }, 'the opening view shows the whole set');
+
+      const seen = [];
+      let alone = 0;
+      for (const id of SECTION_IDS.slice(1)) {
+        alone = await drawsPerFrame(() => goTo(page, id));
+        seen.push((await state()).feature);
+      }
+      assert.deepEqual(seen, ['cassette', 'tapes', 'cone', 'floppies', 'phone']);
+
+      const whole = await drawsPerFrame(() => goTo(page, 'intro'));
+      assert.equal((await state()).feature, null, 'back on the opening view the whole set returns');
+      assert.ok(alone <= 8, `a featured object and its stand take ${alone} draw calls per frame (limit 8)`);
+      assert.ok(whole > alone * 2, `the whole set (${whole} draws per frame) is not hidden while one object is featured (${alone})`);
+    });
+  });
+
+  test('clicking a featured object makes it bounce and leaves the page where it is', async () => {
+    await withPage({ viewport: { width: 1440, height: 900 } }, {}, async (page) => {
+      await sceneReady(page);
+      await goTo(page, 'drops');
+      await untilSettled(page);
+      await page.waitForTimeout(600);
+      await page.evaluate(() => window.scrollBy({ top: 200, behavior: 'instant' }));
+      await page.waitForTimeout(400);
+      assert.equal(await page.evaluate(() => document.documentElement.dataset.section), 'drops');
+      const before = await page.evaluate(() => window.scrollY);
+      const a = await gl(page);
+      // The featured object sits in the middle of the art window.
+      const x = (await page.evaluate(() => document.documentElement.dataset.side)) === 'left' ? 360 : 1080;
+      await page.mouse.click(x, 450);
+      await page.waitForTimeout(1200);
+      assert.ok((await gl(page)).frames - a.frames >= 3, 'the object did not react to the click');
+      assert.equal(await page.evaluate(() => window.scrollY), before, 'the page jumped');
     });
   });
 
@@ -314,8 +394,8 @@ describe('in the browser', { skip }, () => {
       await p.route('**/scene.config.js*', async (route) => {
         const response = await route.fetch();
         const original = await response.text();
-        const body = original.replace("id: 'mug', model: null", "id: 'mug', model: '/__fixture/box-optimized.glb'");
-        assert.notEqual(body, original, 'the config has a mug entry with `model: null` to replace');
+        const body = original.replace("id: 'cassette', model: null", "id: 'cassette', model: '/__fixture/box-optimized.glb'");
+        assert.notEqual(body, original, 'the config has a cassette entry with `model: null` to replace');
         await route.fulfill({ response, body });
       });
     };
@@ -327,11 +407,102 @@ describe('in the browser', { skip }, () => {
     });
   });
 
+  test('block backgrounds are quiet base tones, never an accent', async () => {
+    await withPage({ viewport: { width: 1440, height: 900 } }, {}, async (page) => {
+      await page.waitForTimeout(600);
+      const loud = await page.evaluate(() => [...document.querySelectorAll('main .block')].map((b) => {
+        const [r, g, bl] = /rgba?\(([^)]+)\)/.exec(getComputedStyle(b).backgroundColor)[1].split(/[,\s/]+/).map(Number);
+        const max = Math.max(r, g, bl), min = Math.min(r, g, bl);
+        const saturation = max === 0 ? 0 : (max - min) / max;
+        return { id: b.closest('section').id, rgb: `${r},${g},${bl}`, saturation: +saturation.toFixed(2) };
+      }).filter((b) => b.saturation > 0.2));
+      assert.deepEqual(loud, []);
+    });
+  });
+
+  test('after a section change the on-screen display shows that section\'s channel', async () => {
+    await withPage({ viewport: { width: 1440, height: 900 } }, {}, async (page) => {
+      await sceneReady(page);
+      await goTo(page, 'tour');
+      await page.waitForFunction(() => document.documentElement.dataset.art === 'tour', null, { timeout: 8000 });
+      const osd = await page.evaluate(() => document.getElementById('osd-channel').textContent.replace(/\s+/g, ' ').trim());
+      assert.match(osd, /CH\s*03/);
+      assert.match(osd, /TOUR/i);
+    });
+  });
+
+  test('the Static switch turns the other-world mode on and off, and the scene follows', async () => {
+    await withPage({ viewport: { width: 1440, height: 900 } }, {}, async (page, problems) => {
+      await sceneReady(page);
+      await untilSettled(page, '.tape');
+      const state = () => page.evaluate(() => ({
+        world: document.documentElement.dataset.world ?? '',
+        pressed: document.getElementById('world').getAttribute('aria-pressed'),
+        scene: document.getElementById('scene').dataset.world ?? '',
+        background: getComputedStyle(document.body).backgroundColor,
+      }));
+      const before = await state();
+      assert.deepEqual([before.world, before.pressed, before.scene], ['', 'false', '']);
+      const drawn = (await gl(page)).frames;
+
+      await page.click('#world');
+      await page.waitForFunction(() => document.getElementById('scene').dataset.world === 'static', null, { timeout: 8000 });
+      const on = await state();
+      assert.deepEqual([on.world, on.pressed, on.scene], ['static', 'true', 'static']);
+      assert.notEqual(on.background, before.background, 'the page background changes');
+      assert.ok((await gl(page)).frames > drawn, 'the scene was redrawn in the new look');
+
+      // It survives a section change...
+      await goTo(page, 'kit');
+      await page.waitForFunction(() => document.documentElement.dataset.art === 'kit', null, { timeout: 8000 });
+      assert.equal((await state()).world, 'static');
+
+      // ...and switches back from the keyboard.
+      await page.focus('#world');
+      await page.keyboard.press('Enter');
+      await page.waitForFunction(() => !document.getElementById('scene').dataset.world, null, { timeout: 8000 });
+      const off = await state();
+      assert.deepEqual([off.world, off.pressed], ['', 'false']);
+      assert.deepEqual(problems, []);
+    });
+  });
+
+  test('in Static mode, nothing keeps animating while idle and text still meets contrast', async () => {
+    await withPage({ viewport: { width: 1440, height: 900 } }, {}, async (page) => {
+      await sceneReady(page);
+      await page.click('#world');
+      await goTo(page, 'about');
+      await untilSettled(page);
+      await page.waitForTimeout(1500);
+      assert.deepEqual(await runningAnimations(page), []);
+      const a = await gl(page);
+      await page.waitForTimeout(2000);
+      assert.equal((await gl(page)).draws - a.draws, 0, 'the scene keeps drawing while idle in Static mode');
+      assert.deepEqual((await contrastFailures(page)).slice(0, 10), []);
+    });
+  });
+
+  test('clicking the television switches Static mode on', async () => {
+    await withPage({ viewport: { width: 1440, height: 900 } }, {}, async (page) => {
+      await sceneReady(page);
+      await page.waitForTimeout(800);
+      const spot = await page.evaluate(() => { const c = document.getElementById('scene'); return { x: Number(c.dataset.tvX), y: Number(c.dataset.tvY) }; });
+      assert.ok(spot.x > 0 && spot.y > 0, `the television reports where it is: ${JSON.stringify(spot)}`);
+      await page.mouse.move(spot.x - 30, spot.y + 60);
+      await page.mouse.move(spot.x, spot.y, { steps: 5 });
+      await page.waitForTimeout(400);
+      await page.mouse.click(spot.x, spot.y);
+      await page.waitForFunction(() => document.documentElement.dataset.world === 'static', null, { timeout: 8000 });
+    });
+  });
+
   test('tapping an object on a phone goes to its section', async () => {
     await withPage({ ...playwright.devices['iPhone 13'] }, {}, async (page) => {
       await sceneReady(page);
       await page.waitForTimeout(800);
-      await page.touchscreen.tap(215, 180); // the monitor, in the art window at the top
+      const spot = await objectSpot(page, 'Drops'); // labels are hidden on phones but still track their objects
+      assert.ok(spot && spot.y > 0 && spot.y < 500, `the Drops object is in the art window at the top: ${JSON.stringify(spot)}`);
+      await page.touchscreen.tap(spot.x, spot.y);
       await page.waitForFunction(() => document.documentElement.dataset.section === 'drops', null, { timeout: 8000 });
     });
   });
@@ -349,11 +520,10 @@ describe('in the browser', { skip }, () => {
       assert.ok(c.bar > 0, 'this browser shows a scrollbar');
       const stretch = Math.abs((c.w / c.h) / (c.cw / c.ch) - 1);
       assert.ok(stretch < 0.004, `buffer ${c.w}x${c.h} shown at ${c.cw}x${c.ch}: ${(stretch * 100).toFixed(2)}% stretch`);
-      // The label for the monitor must sit over the monitor: hovering just under it finds the object.
+      // The object must be where its label says it is: hovering there finds it.
       const spot = await page.evaluate(() => {
         const pin = [...document.querySelectorAll('.pin')].find((el) => el.textContent.includes('Drops'));
-        const r = pin.getBoundingClientRect();
-        return { x: r.left + 14, y: r.bottom + 40 };
+        return { x: Number(pin.dataset.cx), y: Number(pin.dataset.cy) };
       });
       await page.mouse.move(spot.x - 40, spot.y + 120);
       await page.mouse.move(spot.x, spot.y, { steps: 5 });
@@ -429,33 +599,7 @@ describe('in the browser', { skip }, () => {
   test('all text meets the WCAG AA contrast ratio against its block', async () => {
     await withPage({ viewport: { width: 1440, height: 900 } }, {}, async (page) => {
       await page.waitForTimeout(800);
-      const failures = await page.evaluate(() => {
-        const parse = (str) => { const p = /rgba?\(([^)]+)\)/.exec(str)[1].split(/[,\s/]+/).map(Number); return { rgb: p.slice(0, 3), a: p[3] ?? 1 }; };
-        const lum = (c) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
-        const out = [];
-        for (const el of document.querySelectorAll('main .block *')) {
-          const own = [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim());
-          if (!own || el.closest('[aria-hidden="true"]')) continue;
-          const cs = getComputedStyle(el);
-          const fg = parse(cs.color);
-          let alpha = fg.a;
-          let bg = null;
-          for (let n = el; n; n = n.parentElement) {
-            const ns = getComputedStyle(n);
-            alpha *= parseFloat(ns.opacity);
-            if (!bg) { const b = parse(ns.backgroundColor); if (b.a > 0.99) bg = b.rgb; }
-            if (n.classList.contains('block')) break;
-          }
-          if (!bg) continue;
-          const seen = fg.rgb.map((v, i) => v * alpha + bg[i] * (1 - alpha));
-          const [hi, lo] = [lum(seen), lum(bg)].sort((a, b) => b - a);
-          const ratio = (hi + 0.05) / (lo + 0.05);
-          const size = parseFloat(cs.fontSize);
-          const large = size >= 24 || (size >= 18.66 && Number(cs.fontWeight) >= 700);
-          if (ratio < (large ? 3 : 4.5)) out.push(`${el.tagName}.${el.className} "${el.textContent.trim().slice(0, 22)}" ${ratio.toFixed(2)}:1 (needs ${large ? 3 : 4.5})`);
-        }
-        return [...new Set(out)];
-      });
+      const failures = await contrastFailures(page);
       assert.deepEqual(failures.slice(0, 12), []);
     });
   });

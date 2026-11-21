@@ -1,10 +1,12 @@
-/* Street theme. Order matters: tokens, base, the fixed art layer, page layout, parts. */
-@import '@fontsource/anton/latin-400.css';
-@import '@fontsource/chakra-petch/latin-500.css';
-@import '@fontsource/chakra-petch/latin-700.css';
+/* Channel theme. Order matters: tokens, base, the fixed art layer, page layout, parts,
+   then the Static (other-world) overrides. */
+@import '@fontsource/barlow-condensed/latin-800-italic.css';
+@import '@fontsource/space-mono/latin-400.css';
+@import '@fontsource/space-mono/latin-700.css';
 @import '@fontsource-variable/space-grotesk/wght.css';
 @import './tokens.css';
 @import './base.css';
 @import './art.css';
 @import './layout.css';
 @import './components.css';
+@import './static.css';

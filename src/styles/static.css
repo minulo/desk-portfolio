@@ -1,0 +1,67 @@
+/* STATIC: the other-world mode. The signal drops and the page tunes to the dead
+   channel: deep black, accents that glow, colour that has split apart, scanlines on
+   everything. Turned on by html[data-world='static'].
+   This is the one place glow is allowed; everywhere else edges stay hard. */
+html[data-world='static'] {
+  --black: #040405;
+  --char: #09090c;
+  --char-2: #0e0e12;
+  --wall: #040405;
+  --wall-ink: var(--accent);
+  --split-a: var(--cyan);
+  --split-b: var(--magenta);
+}
+html[data-world='static'][data-art] { --wall: #040405; --wall-ink: var(--accent); }
+html[data-world='static'] body { background: #040405; }
+
+/* Every panel goes dark, paper ones included. */
+html[data-world='static'] .block--paper {
+  --bg: #07070a; --fg: var(--paper); --mute: var(--dim); --line: rgba(236, 231, 218, 0.22); --card: #0e0e12;
+}
+html[data-world='static'] .block--paper .hl { background: none; color: var(--accent); padding: 0; transform: none; }
+html[data-world='static'] .block--paper .stickers li,
+html[data-world='static'] .block--paper .badges li:nth-child(3) { color: var(--paper); border-color: var(--concrete-2); }
+html[data-world='static'] .block--paper .stickers li:nth-child(5n + 1),
+html[data-world='static'] .block--paper .badges li:nth-child(2) { color: var(--ink); }
+html[data-world='static'] .block--paper .btn--accent { box-shadow: 6px 6px 0 var(--concrete-2); }
+
+/* Headlines split into two colours and glow. */
+html[data-world='static'] h1,
+html[data-world='static'] h2 {
+  text-shadow: -3px 0 0 var(--split-a), 3px 0 0 var(--split-b), 0 0 26px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+html[data-world='static'] .hl { text-shadow: -3px 0 0 var(--split-b), 3px 0 0 var(--split-a), 0 0 30px var(--accent); }
+
+/* Accents glow; borders become accent lines. */
+html[data-world='static'] .block::before { box-shadow: 0 0 22px var(--accent); }
+html[data-world='static'] :is(.chip, .num, .btn--accent, .is-now time, .drop-meta b) { box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 70%, transparent); }
+html[data-world='static'] :is(.speech, .notice) { border-color: var(--accent); box-shadow: 0 0 0 1px var(--split-b), 0 0 22px color-mix(in srgb, var(--accent) 40%, transparent); }
+html[data-world='static'] .speech::before { background: var(--accent); }
+html[data-world='static'] .drop { background: #0e0e12; color: var(--paper); box-shadow: -3px 0 0 var(--split-a), 3px 0 0 var(--split-b); }
+html[data-world='static'] .drop-go { border-color: var(--accent); }
+html[data-world='static'] .drop-meta b { color: var(--ink); }
+
+/* The art layer: black wall, glowing frame, lines in the accent. */
+html[data-world='static'] .art-wall { background: none; }
+html[data-world='static'] .art-dots { opacity: 0.3; }
+html[data-world='static'] .art-word { opacity: 0.5; text-shadow: 0 0 30px var(--accent); }
+html[data-world='static'] .screen {
+  background: repeating-linear-gradient(0deg, color-mix(in srgb, var(--accent) 16%, transparent) 0 2px, transparent 2px 4px), #07070a;
+  border-color: var(--accent);
+  box-shadow: -4px 0 0 var(--split-a), 4px 0 0 var(--split-b), 0 0 46px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+html[data-world='static'] .screen-tab { background: var(--accent); color: var(--ink); }
+html[data-world='static'] .osd { text-shadow: -2px 0 0 var(--split-b), 2px 0 0 var(--split-a), 0 0 12px var(--accent); }
+html[data-world='static'] .pin { background: #07070a; color: var(--paper); border-color: var(--accent); box-shadow: 3px 3px 0 var(--split-b); }
+html[data-world='static'] .pin b { background: var(--accent); color: var(--ink); }
+html[data-world='static'] .pin:hover, html[data-world='static'] .pin.is-hot { background: var(--accent); color: var(--ink); }
+
+/* Scanlines over the whole page. A still overlay: it costs nothing while idle. */
+html[data-world='static'] body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(4, 4, 5, 0.34) 0 1px, transparent 1px 3px);
+}
