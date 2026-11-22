@@ -148,3 +148,13 @@ test('labels that change wording in Static mode have both wordings in the page',
   assert.ok(clean >= 2, `only ${clean} labels have a clean-signal wording to hide`);
   assert.match(read('src', 'styles', 'base.css'), /\.when-static\s*\{[^}]*display:\s*none/, 'the Static wording is hidden by default');
 });
+
+test('the email link goes to the address it shows, and it is the confirmed one', () => {
+  const link = /<a class="mail" href="mailto:([^"]+)">([\s\S]*?)<\/a>/.exec(html);
+  assert.ok(link, 'there is an email link');
+  const shown = link[2].replace(/<[^>]+>/g, '').replace(/\s+/g, '');
+  assert.equal(shown, link[1], 'the link and the text it shows are different addresses');
+  // Confirmed by Minh on 2026-11-22; the résumé carries the same one. An earlier copy
+  // of the site had it as "mnguyen31".
+  assert.equal(link[1], 'mnguy31@u.rochester.edu');
+});
