@@ -965,8 +965,8 @@ describe('in the browser', { skip }, () => {
     const types = { html: 'text/html', js: 'text/javascript', css: 'text/css', svg: 'image/svg+xml', pdf: 'application/pdf', woff2: 'font/woff2', woff: 'font/woff', json: 'application/json' };
     const server = createServer(async (request, response) => {
       const url = new URL(request.url, 'http://localhost');
-      if (!url.pathname.startsWith('/desk-portfolio/')) { response.writeHead(404).end('outside the site'); return; }
-      const file = url.pathname.slice('/desk-portfolio/'.length) || 'index.html';
+      if (!url.pathname.startsWith('/portfolio/')) { response.writeHead(404).end('outside the site'); return; }
+      const file = url.pathname.slice('/portfolio/'.length) || 'index.html';
       try {
         const body = await readFile(path.join(ROOT, 'dist', file));
         response.writeHead(200, { 'content-type': types[file.split('.').pop()] ?? 'application/octet-stream' }).end(body);
@@ -975,7 +975,7 @@ describe('in the browser', { skip }, () => {
       }
     });
     await new Promise((done) => server.listen(0, '127.0.0.1', done));
-    const base = `http://127.0.0.1:${server.address().port}/desk-portfolio/`;
+    const base = `http://127.0.0.1:${server.address().port}/portfolio/`;
     try {
       await withPage({ viewport: { width: 1280, height: 800 } }, { url: () => base }, async (page, problems) => {
         const missing = [];

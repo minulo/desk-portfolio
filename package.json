@@ -1,5 +1,5 @@
 {
-  "name": "desk-portfolio",
+  "name": "portfolio",
   "version": "1.0.0",
   "scripts": {
     "dev": "vite",

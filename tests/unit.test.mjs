@@ -172,11 +172,11 @@ test('renderScale copes with a missing or zero-sized window', () => {
 import { resolveAsset } from '../src/lib/asset-url.js';
 
 test('resolveAsset keeps a root-style path inside the folder the site is served from', () => {
-  assert.equal(resolveAsset('/models/mug.glb', 'https://example.github.io/desk-portfolio/'), 'https://example.github.io/desk-portfolio/models/mug.glb');
+  assert.equal(resolveAsset('/models/mug.glb', 'https://example.github.io/portfolio/'), 'https://example.github.io/portfolio/models/mug.glb');
 });
 
 test('resolveAsset treats a relative path the same way', () => {
-  assert.equal(resolveAsset('models/mug.glb', 'https://example.github.io/desk-portfolio/'), 'https://example.github.io/desk-portfolio/models/mug.glb');
+  assert.equal(resolveAsset('models/mug.glb', 'https://example.github.io/portfolio/'), 'https://example.github.io/portfolio/models/mug.glb');
 });
 
 test('resolveAsset works when the site is served from the root', () => {
