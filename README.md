@@ -254,6 +254,26 @@ strengthen the warm band at the shadow edge.
 
 ![Phone](docs/screenshots/09-phone-intro.jpg)
 
+## Put it on GitHub Pages
+
+The repository carries a workflow, `.github/workflows/deploy.yml`, that tests, builds
+and publishes the site. It is the workflow from Vite's deployment guide with a test
+step added. It runs on every push to `main`, and on demand from the Actions tab.
+
+1. In the repository on GitHub: **Settings → Pages → Build and deployment → Source →
+   GitHub Actions**. This is the only step that cannot be done from a commit.
+2. Get the version you want published onto `main`. The workflow publishes whatever
+   `main` holds.
+3. The first run appears under the **Actions** tab. When it is green the site is at
+   `https://<owner>.github.io/<repository>/`.
+
+Nothing in the build knows that address: `vite.config.js` sets `base: './'`, so every
+link in the built page is relative and the site works from any folder. A test serves
+the built site from a sub-folder and fails if any file goes missing.
+
+A GitHub Pages site is public even when its repository is private, so check what is in
+`public/` before publishing. The résumé PDF there is part of the site.
+
 ## Branches
 
 | Branch | What it is |

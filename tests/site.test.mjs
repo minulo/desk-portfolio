@@ -958,6 +958,48 @@ describe('in the browser', { skip }, () => {
     });
   });
 
+  test('the built site works from a sub-folder, as GitHub Pages serves a project site', async () => {
+    // https://<user>.github.io/<repo>/ : every address in the page must be relative.
+    const { createServer } = await import('node:http');
+    const { readFile } = await import('node:fs/promises');
+    const types = { html: 'text/html', js: 'text/javascript', css: 'text/css', svg: 'image/svg+xml', pdf: 'application/pdf', woff2: 'font/woff2', woff: 'font/woff', json: 'application/json' };
+    const server = createServer(async (request, response) => {
+      const url = new URL(request.url, 'http://localhost');
+      if (!url.pathname.startsWith('/desk-portfolio/')) { response.writeHead(404).end('outside the site'); return; }
+      const file = url.pathname.slice('/desk-portfolio/'.length) || 'index.html';
+      try {
+        const body = await readFile(path.join(ROOT, 'dist', file));
+        response.writeHead(200, { 'content-type': types[file.split('.').pop()] ?? 'application/octet-stream' }).end(body);
+      } catch {
+        response.writeHead(404).end('not found');
+      }
+    });
+    await new Promise((done) => server.listen(0, '127.0.0.1', done));
+    const base = `http://127.0.0.1:${server.address().port}/desk-portfolio/`;
+    try {
+      await withPage({ viewport: { width: 1280, height: 800 } }, { url: () => base }, async (page, problems) => {
+        const missing = [];
+        page.on('response', (r) => { if (r.status() >= 400) missing.push(`${r.status()} ${r.url().replace(base, '')}`); });
+        page.on('requestfailed', (r) => missing.push(`failed ${r.url().replace(base, '')}`));
+        await page.reload({ waitUntil: 'load' });
+        await sceneReady(page);
+        // Things the page points at but does not load by itself: the icons and the résumé.
+        const linked = await page.evaluate(async () => {
+          const targets = [document.querySelector('use').getAttribute('href').split('#')[0], document.querySelector('a[download]').getAttribute('href')];
+          return Promise.all(targets.map(async (t) => `${(await fetch(t)).status} ${t}`));
+        });
+        assert.deepEqual(linked.filter((line) => !line.startsWith('200 ')), [], 'a linked file is missing');
+        assert.equal(await page.evaluate(() => document.fonts.check('800 italic 40px "Barlow Condensed"')), true, 'the headline font did not load');
+        await goTo(page, 'tour');
+        await page.waitForFunction(() => document.getElementById('scene').dataset.shown === 'tour', null, { timeout: 10000 });
+        assert.deepEqual(missing, []);
+        assert.deepEqual(problems, []);
+      });
+    } finally {
+      server.close();
+    }
+  });
+
   test('with reduced motion, no animation is running', async () => {
     await withPage({ viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' }, {}, async (page) => {
       await sceneReady(page);

@@ -1,0 +1,59 @@
+# Builds the site and publishes it to GitHub Pages.
+#
+# Adapted from the workflow in Vite's guide "Deploying a Static Site" (GitHub Pages
+# section, as it stood on 2026-11-20). One step is added: the quick tests run before the
+# build, so a broken change is not published.
+#
+# It does nothing until GitHub Pages is switched on for the repository:
+# Settings -> Pages -> Build and deployment -> Source: GitHub Actions.
+name: Deploy to GitHub Pages
+
+on:
+  # Every push to the default branch publishes.
+  push:
+    branches: ['main']
+  # And it can be run by hand from the Actions tab.
+  workflow_dispatch:
+
+# What the workflow's own token may do: read the code, and publish to Pages.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time. A newer push waits for the one in progress to finish.
+concurrency:
+  group: 'pages'
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      # Unit, content and size checks. The browser tests need Playwright, which is not
+      # installed here, and skip themselves.
+      - name: Test
+        run: npm test
+      - name: Build
+        run: npm run build
+      - name: Setup Pages
+        uses: actions/configure-pages@v6
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: './dist'
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
