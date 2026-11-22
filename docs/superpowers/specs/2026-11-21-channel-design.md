@@ -94,6 +94,23 @@ tape names the mode (NO SIGNAL · DEAD CHANNEL), carries a Retune button, and fo
 seconds one line, "Same station, other side of the dial."; screen readers get a plain
 status message.
 
+**Third round: where the break is, and how wild.** Minh liked the cracked screen and
+asked for two changes: no crack lines through the text ("only fractured in the area
+that shows the items"; the broken headlines stay), and "a bit crazier on the item part
+with the theme of chaos".
+
+- The crack lines moved into the art layer. The text panels lie on top of that layer,
+  so the lines end at the panel's edge without any clipping of their own.
+- The impact moved from the middle of the picture up into a corner. With every crack
+  meeting on the object it was cut into slivers; from the corner it stays in a few
+  large pieces, which leaves room to be wilder everywhere else.
+- Chaos, kept rigid and repeatable so it still reads as drawn: pieces move and turn
+  further and change size; each sees the scene from its own angle, like a piece of a
+  broken mirror, and answers the pointer by its own amount; two pieces are tuned to
+  the neighbouring channels and show their objects, numbers and accents ("same station,
+  other side of the dial", taken literally); loose shards are thrown along the cracks;
+  a smaller crack crosses each piece.
+
 How the 3D picture breaks without a second pass: the scene is drawn once per piece
 into the same canvas. The vertex shader moves everything as one rigid sheet; the
 fragment shader keeps a pixel only if, traced back, it lay inside that piece. The

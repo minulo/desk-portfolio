@@ -79,7 +79,15 @@ describe('in the browser', { skip }, () => {
     }
   }
 
-  const sceneReady = (page) => page.waitForSelector('html.scene-ready', { state: 'attached', timeout: 20000 });
+  /** Wait for the 3D scene. If it never starts, say what state the page was left in. */
+  const sceneReady = async (page) => {
+    try {
+      await page.waitForSelector('html.scene-ready', { state: 'attached', timeout: 20000 });
+    } catch (err) {
+      const left = await page.evaluate(() => `html class "${document.documentElement.className}", a new WebGL2 context ${document.createElement('canvas').getContext('webgl2') ? 'can' : 'cannot'} be made`).catch(() => 'the page is gone');
+      throw new Error(`the 3D scene did not start within 20 s: ${left}`, { cause: err });
+    }
+  };
   const gl = (page) => page.evaluate(() => ({ ...window.__gl }));
   const runningAnimations = (page) => page.evaluate(() => document.getAnimations()
     .filter((a) => a.playState === 'running')
@@ -562,8 +570,25 @@ describe('in the browser', { skip }, () => {
         picture: document.getElementById('scene').dataset.pieces ?? '',
         screen: pieces.length,
         moved: new Set(pieces.map((el) => getComputedStyle(el).transform).filter((t) => t !== 'none' && t !== 'matrix(1, 0, 0, 1, 0, 0)')).size,
-        cracks: getComputedStyle(document.getElementById('cracks')).display === 'none' ? 0 : document.querySelectorAll('#cracks line').length,
+        cracks: getComputedStyle(document.getElementById('cracks')).display === 'none' ? 0 : document.querySelectorAll('#cracks line.crack').length,
         wholeScreenShown: getComputedStyle(document.querySelector('.art-set > .screen')).visibility !== 'hidden',
+      };
+    });
+    // The chaos in the window that shows the objects: smaller cracks, loose shards, and
+    // pieces tuned to other channels.
+    const chaos = (page) => page.evaluate(() => {
+      const shown = (el) => el.getClientRects().length > 0;
+      const canvas = document.getElementById('scene');
+      const strays = [...document.querySelectorAll('#shards .shard[data-accent]')];
+      return {
+        web: [...document.querySelectorAll('#cracks line.web')].filter(shown).length,
+        shards: [...document.querySelectorAll('#debris i')].filter(shown).length,
+        tones: new Set([...document.querySelectorAll('#debris i')].filter(shown).map((el) => getComputedStyle(el).backgroundColor)).size,
+        feature: canvas.dataset.feature ?? '',
+        also: (canvas.dataset.also ?? '').split(',').filter(Boolean),
+        strayAccents: strays.map((el) => el.dataset.accent),
+        strayChannels: strays.map((el) => el.querySelector('.osd-channel').textContent.trim().slice(0, 5)),
+        ownChannel: document.querySelector('#shards .shard:not([data-accent]) .osd-channel')?.textContent.trim().slice(0, 5) ?? '',
       };
     });
     const frame = (page) => page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(done)))));
@@ -581,6 +606,17 @@ describe('in the browser', { skip }, () => {
       await untilSettled(page);
       await frame(page);
       assert.deepEqual(await state(page), { picture: '7', screen: 7, moved: 7, cracks: 7, wholeScreenShown: false });
+
+      // Around the object it is chaos, but a drawn one: every piece is accounted for.
+      const wild = await chaos(page);
+      assert.equal(wild.web, 7, 'a smaller crack crosses each piece');
+      assert.ok(wild.shards >= 10 && wild.tones >= 4, `${wild.shards} loose shards in ${wild.tones} colours`);
+      assert.equal(wild.feature, 'cassette');
+      assert.equal(wild.also.length, 2, 'two pieces show other channels');
+      assert.ok(!wild.also.includes('cassette') && new Set(wild.also).size === 2, `the stray pieces show ${wild.also}`);
+      assert.deepEqual(wild.strayAccents.sort(), ['magenta', 'yellow'], 'the stray pieces carry the accents of Drops and Hotline, the channels either side of Who');
+      assert.deepEqual(wild.strayChannels.sort(), ['CH 02', 'CH 05']);
+      assert.equal(wild.ownChannel, 'CH 01');
 
       // Broken, but still: nothing is drawn and nothing animates.
       const a = await gl(page);
@@ -605,6 +641,8 @@ describe('in the browser', { skip }, () => {
       await page.waitForFunction(() => !document.getElementById('scene').dataset.pieces, null, { timeout: 8000 });
       await untilSettled(page);
       assert.deepEqual(await state(page), { picture: '', screen: 0, moved: 0, cracks: 0, wholeScreenShown: true });
+      const calm = await chaos(page);
+      assert.deepEqual([calm.web, calm.shards, calm.also], [0, 0, []], 'nothing of the break is left on a clean signal');
       assert.deepEqual(problems, []);
     });
     // With reduced motion the pieces are simply apart: nothing snaps.
@@ -616,6 +654,37 @@ describe('in the browser', { skip }, () => {
       const s = await state(page);
       assert.deepEqual([s.screen, s.moved, s.cracks], [7, 7, 7]);
     });
+  });
+
+  test('in Static mode the cracks stay in the window that shows the objects, and never cross the text', async () => {
+    for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+      await withPage({ viewport, reducedMotion: 'reduce' }, {}, async (page) => {
+        await page.waitForTimeout(400);
+        await page.evaluate(() => document.getElementById('world').click());
+        await page.evaluate(() => document.getElementById('about').scrollIntoView({ behavior: 'instant', block: 'start' }));
+        await page.waitForFunction(() => document.documentElement.dataset.art === 'about', null, { timeout: 8000 });
+        const found = await page.evaluate(() => {
+          const cracks = document.getElementById('cracks');
+          const block = document.querySelector('#about .block');
+          const box = block.getBoundingClientRect();
+          // What is on top in the middle of the text panel, and whether it is opaque.
+          // (Not near the bottom of the screen: the taped note sits there.)
+          const top = document.elementFromPoint(box.left + box.width / 2, Math.max(box.top, 0) + Math.min(box.height, innerHeight) / 2);
+          return {
+            lines: cracks.querySelectorAll('line').length,
+            inArtLayer: !!cracks.closest('.art'),
+            artLevel: Number(getComputedStyle(document.querySelector('.art')).zIndex),
+            textLevel: Number(getComputedStyle(document.querySelector('main')).zIndex),
+            panelOnTop: !!top?.closest('#about .block'),
+            panelOpaque: !/rgba\(.*,\s*0(\.\d+)?\)$/.test(getComputedStyle(block).backgroundColor) && getComputedStyle(block).backgroundColor !== 'transparent',
+          };
+        });
+        assert.ok(found.lines >= 7, 'the cracks are drawn');
+        assert.ok(found.inArtLayer, 'the cracks are not part of the art layer');
+        assert.ok(found.artLevel < found.textLevel, 'the art layer is not below the text');
+        assert.ok(found.panelOnTop && found.panelOpaque, 'the text panel does not cover what is behind it');
+      });
+    }
   });
 
   test('in Static mode an object is found where its broken piece is drawn', async () => {
@@ -871,6 +940,21 @@ describe('in the browser', { skip }, () => {
       const headings = await visibleHeadings(page);
       assert.deepEqual(headings.filter((h) => !h.ok), []);
       assert.deepEqual(problems.filter((p) => p.startsWith('pageerror')), []);
+    });
+  });
+
+  test('the 3D scene starts even if the browser never reports an idle moment', async () => {
+    // A page that is perfectly still (reduced motion) can wait for "idle" for ever: seen
+    // here in about one load in seven. The page must ask with a deadline. This browser
+    // only honours the deadline, as the worst case does.
+    await withPage({ viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' }, {
+      prepare: (page) => page.addInitScript(() => {
+        window.requestIdleCallback = (fn, options) => (options?.timeout ? setTimeout(() => fn({ didTimeout: true, timeRemaining: () => 0 }), options.timeout) : 0);
+      }),
+    }, async (page) => {
+      const t0 = Date.now();
+      await page.waitForSelector('html.scene-ready', { state: 'attached', timeout: 12000 });
+      assert.ok(Date.now() - t0 < 8000, 'the scene took too long to start');
     });
   });
 

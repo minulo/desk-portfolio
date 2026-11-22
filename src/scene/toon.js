@@ -14,9 +14,9 @@ import { ShaderMaterial, Vector2, Vector3, BackSide, DoubleSide } from 'three';
  *
  * In Static (other-world) mode the same shaders go dark, light the edges in the accent
  * and add scanlines, and the picture is broken into pieces: the scene is drawn once per
- * piece, each time moved and turned rigidly, and each time keeping only the pixels that
- * lay inside that piece before it moved (see src/lib/fracture.js). Still one pass, the
- * same three programs, and nothing is drawn while the picture is at rest.
+ * piece, each time moved, turned and resized rigidly, and each time keeping only the
+ * pixels that lay inside that piece before it moved (see src/lib/fracture.js). Still one
+ * pass, the same three programs, and nothing is drawn while the picture is at rest.
  *
  * Colours are written as they should appear on screen; nothing here converts colour spaces.
  */
@@ -34,6 +34,7 @@ export function createShared() {
     uShardP: { value: new Vector2() },
     uShardOff: { value: new Vector2() },
     uShardRot: { value: 0 },
+    uShardScale: { value: 1 },
     uShardD0: { value: new Vector2(1, 0) },
     uShardD1: { value: new Vector2(0, 1) },
   };
@@ -47,6 +48,7 @@ uniform float uShardOn;   // 0 draws the picture whole
 uniform vec2 uShardP;     // the point of impact
 uniform vec2 uShardOff;   // how far this piece has moved
 uniform float uShardRot;  // how far it has turned around the impact, radians
+uniform float uShardScale; // how much larger or smaller it is drawn, from the impact
 `;
 const SHARD_VERT = /* glsl */ `
 ${SHARD}
@@ -57,7 +59,7 @@ vec4 shard(vec4 clip) {
   float s = sin(uShardRot);
   // The pixel position times w, so nothing is divided: right behind the camera too.
   vec2 q = (clip.xy * 0.5 + 0.5 * clip.w) * uResolution - uShardP * clip.w;
-  q = vec2(c * q.x - s * q.y, s * q.x + c * q.y) + (uShardP + uShardOff) * clip.w;
+  q = vec2(c * q.x - s * q.y, s * q.x + c * q.y) * uShardScale + (uShardP + uShardOff) * clip.w;
   clip.xy = q / uResolution * 2.0 - clip.w;
   return clip;
 }
@@ -72,7 +74,7 @@ void shardClip() {
   vec2 p = gl_FragCoord.xy - uShardOff - uShardP;
   float c = cos(uShardRot);
   float s = sin(uShardRot);
-  p = vec2(c * p.x + s * p.y, c * p.y - s * p.x);
+  p = vec2(c * p.x + s * p.y, c * p.y - s * p.x) / uShardScale;
   // ...and it is kept only if that lies between the two cracks.
   if (uShardD0.x * p.y - uShardD0.y * p.x < 0.0 || p.x * uShardD1.y - p.y * uShardD1.x < 0.0) discard;
 }
@@ -251,6 +253,7 @@ export function createMaterials(shared) {
     uShardP: shared.uShardP,
     uShardOff: shared.uShardOff,
     uShardRot: shared.uShardRot,
+    uShardScale: shared.uShardScale,
     uShardD0: shared.uShardD0,
     uShardD1: shared.uShardD1,
   };

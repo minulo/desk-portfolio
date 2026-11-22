@@ -7,7 +7,7 @@ import { slab } from './objects.js';
 import { hexToRgb } from './geometry.js';
 import { artWindowOffset } from '../lib/view-offset.js';
 import { featureCamera } from '../lib/feature-view.js';
-import { CRACKS, fracture, displace, restore } from '../lib/fracture.js';
+import { CRACKS, fracture, locate, sector, move } from '../lib/fracture.js';
 import { createTweenTracker } from '../lib/tween.js';
 import { renderScale } from '../lib/render-scale.js';
 
@@ -144,20 +144,32 @@ export async function createScene({ canvas, pinLayer, objects, views, stageTop, 
       shared.uShardOn.value = 0;
       renderer.render(scene, camera);
     } else {
-      // Static mode: the scene once per piece, each moved and turned as one rigid sheet.
+      // Static mode: the scene once per piece, each moved, turned and resized as one rigid
+      // sheet. Like the pieces of a broken mirror, each sees the scene from its own angle,
+      // and a piece tuned to another channel shows that channel's object in its colour.
       // The layout is in CSS pixels with y down and angles clockwise; the shaders work in
       // device pixels with y up, so heights flip and turns change sign.
       const ratio = shared.uPixel.value;
       const rad = Math.PI / 180;
       shared.uShardOn.value = 1;
       shared.uShardP.value.set(broken.impact[0] * ratio, canvas.height - broken.impact[1] * ratio);
-      for (const piece of broken.pieces) {
+      broken.pieces.forEach((piece, i) => {
+        const other = tuned[i] ?? null;
+        arrange(other ? other.item : featured);
+        tint(other ? other.accent : accent);
+        aim(other ? other.camera : viewPos, other ? other.target : viewTarget, piece.view, piece.sway);
         shared.uShardD0.value.set(Math.cos(piece.to * rad), -Math.sin(piece.to * rad));
         shared.uShardD1.value.set(Math.cos(piece.from * rad), -Math.sin(piece.from * rad));
         shared.uShardOff.value.set(piece.offset[0] * ratio, -piece.offset[1] * ratio);
         shared.uShardRot.value = -piece.turn * rad;
+        shared.uShardScale.value = piece.scale;
+        renderer.clearDepth(); // a later piece lies on top of an earlier one where they overlap
         renderer.render(scene, camera);
-      }
+      });
+      // Back to the resting state, which hover, picking and labels start from.
+      arrange(featured);
+      tint(accent);
+      aim(viewPos, viewTarget);
     }
     stats.lastFrameMs = performance.now() - t0;
     stats.frames++;
@@ -185,18 +197,31 @@ export async function createScene({ canvas, pinLayer, objects, views, stageTop, 
   const up = new Vector3();
   const away = new Vector3();
 
-  function placeCamera() {
-    away.subVectors(viewPos, viewTarget);
-    camera.position.copy(viewTarget).addScaledVector(away, 1 + settle.back * 0.09);
+  const UP = new Vector3(0, 1, 0);
+  /**
+   * Point the camera. `view` swings it around the target by [turn, tilt] degrees and
+   * `sway` scales how far it follows the pointer: a broken piece has its own of both.
+   */
+  function aim(position, target, view = [0, 0], sway = 1) {
+    away.subVectors(position, target);
+    if (view[0] || view[1]) {
+      away.applyAxisAngle(UP, (view[0] * Math.PI) / 180);
+      right.crossVectors(UP, away).normalize();
+      away.applyAxisAngle(right, (-view[1] * Math.PI) / 180);
+    }
+    camera.position.copy(target).addScaledVector(away, 1 + settle.back * 0.09);
     camera.position.y += settle.back * 0.04;
-    camera.lookAt(viewTarget);
+    camera.lookAt(target);
     if (parallax.x || parallax.y) {
       right.setFromMatrixColumn(camera.matrix, 0);
       up.setFromMatrixColumn(camera.matrix, 1);
-      camera.position.addScaledVector(right, parallax.x).addScaledVector(up, parallax.y);
-      camera.lookAt(viewTarget);
+      camera.position.addScaledVector(right, parallax.x * sway).addScaledVector(up, parallax.y * sway);
+      camera.lookAt(target);
     }
     camera.updateMatrixWorld();
+  }
+  function placeCamera() {
+    aim(viewPos, viewTarget);
     invalidate();
   }
 
@@ -231,16 +256,22 @@ export async function createScene({ canvas, pinLayer, objects, views, stageTop, 
   let accent = hexToRgb(0xffd400);
   let wall = hexToRgb(0x8c8880);
 
+  /** Colour the light and, in Static mode, the lines, for one accent. */
+  function tint(rgb) {
+    shared.uBounce.value.set(...rgb);
+    if (!world) return;
+    // Static: lines glow in the accent and the die-cut edge splits off to one side
+    // in a second colour, like a misregistered print.
+    // The second colour must not be the accent's neighbour: red and pink lines get cyan.
+    const reddish = rgb[0] > 0.9 && rgb[1] < 0.4;
+    lineColour.set(...rgb);
+    stickerColour.set(...hexToRgb(reddish ? 0x19e0ff : 0xff2e88));
+  }
+
   function applyLook() {
-    shared.uBounce.value.set(...accent);
     shared.uWorld.value = world ? 1 : 0;
+    tint(accent);
     if (world) {
-      // Static: lines glow in the accent and the die-cut edge splits off to one side
-      // in a second colour, like a misregistered print.
-      // The second colour must not be the accent's neighbour: red and pink lines get cyan.
-      const reddish = accent[0] > 0.9 && accent[1] < 0.4;
-      lineColour.set(...accent);
-      stickerColour.set(...hexToRgb(reddish ? 0x19e0ff : 0xff2e88));
       stickerShift.value = 5;
       floorColour.set(0.03, 0.03, 0.04);
       slabShadow.set(0.02, 0.02, 0.03);
@@ -254,10 +285,8 @@ export async function createScene({ canvas, pinLayer, objects, views, stageTop, 
     invalidate();
   }
 
-  /** Show the whole set, or one object alone on its stand. */
-  let featured = null;
-  function feature(item) {
-    featured = item;
+  /** Put on stage the whole set (null), or one object alone on its stand. */
+  function arrange(item) {
     slabGroup.visible = !item;
     for (const it of items) {
       const alone = it === item;
@@ -268,7 +297,31 @@ export async function createScene({ canvas, pinLayer, objects, views, stageTop, 
       it.shadow.uniforms.uCentre.value.set(alone ? it.stand.position.x : 0, alone ? it.stand.position.z : 0);
       it.shadow.uniforms.uHalf.value.fromArray(alone ? it.standHalf : SLAB_HALF);
     }
+  }
+
+  /** What this channel shows: the whole set, or one object. */
+  let featured = null;
+  function feature(item) {
+    featured = item;
+    arrange(item);
     if (item) canvas.dataset.feature = item.entry.id; else delete canvas.dataset.feature;
+  }
+
+  // In Static mode some pieces are tuned to other channels: for each piece, null or what
+  // it shows instead ({ item, accent, camera, target }).
+  let tuned = [];
+  /** Which other channels' objects show through, for anything that wants to know. */
+  function noteTuned() {
+    const also = world ? tuned.filter(Boolean).map((other) => other.item.entry.id) : [];
+    if (also.length) canvas.dataset.also = also.join(','); else delete canvas.dataset.also;
+  }
+  /** The object a section features, framed as that section frames it. */
+  function staged(sectionId) {
+    const view = views[sectionId];
+    const item = view?.feature ? items.find((it) => it.entry.id === view.feature && it.stand) ?? null : null;
+    if (!item) return null;
+    const framing = featureCamera({ centre: item.ball.center.toArray(), radius: item.ball.radius, from: view.from ?? [24, 20], fill: view.fill ?? 0.8, fov: camera.fov });
+    return { item, camera: new Vector3().fromArray(framing.camera), target: new Vector3().fromArray(framing.target) };
   }
 
   // Overshoots 1 a little before landing on it: the "pop" of something slapped into place.
@@ -306,6 +359,7 @@ export async function createScene({ canvas, pinLayer, objects, views, stageTop, 
     }
     // The number of pieces the picture is in, for anything that wants to know.
     if (world) canvas.dataset.pieces = String(CRACKS.length); else delete canvas.dataset.pieces;
+    noteTuned();
     applyLook();
   }
 
@@ -318,15 +372,25 @@ export async function createScene({ canvas, pinLayer, objects, views, stageTop, 
    */
   function show(sectionId, look) {
     const view = views[sectionId] ?? views.intro;
-    const item = view.feature ? items.find((it) => it.entry.id === view.feature && it.stand) ?? null : null;
+    const own = staged(sectionId);
+    const item = own?.item ?? null;
     shown = sectionId;
     canvas.dataset.shown = sectionId;
     feature(item);
-    const framing = item
-      ? featureCamera({ centre: item.ball.center.toArray(), radius: item.ball.radius, from: view.from ?? [24, 20], fill: view.fill ?? 0.8, fov: camera.fov })
-      : (view.camera ? view : views.intro);
-    viewPos.fromArray(framing.camera);
-    viewTarget.fromArray(framing.target);
+    if (own) {
+      viewPos.copy(own.camera);
+      viewTarget.copy(own.target);
+    } else {
+      const framing = view.camera ? view : views.intro;
+      viewPos.fromArray(framing.camera);
+      viewTarget.fromArray(framing.target);
+    }
+    // Pieces tuned to other channels, for Static mode: [{ section, accent } or null, ...].
+    tuned = (look.tuned ?? []).map((other) => {
+      const there = other && staged(other.section);
+      return there && there.item !== item ? { ...there, accent: hexToRgb(other.accent) } : null;
+    });
+    noteTuned();
     artRect = look.rect;
     accent = hexToRgb(look.accent);
     wall = hexToRgb(look.wall);
@@ -361,23 +425,31 @@ export async function createScene({ canvas, pinLayer, objects, views, stageTop, 
   let hovered = null;
 
   function pick(clientX, clientY) {
-    // In a broken picture, find which part of the whole picture is showing under the
-    // pointer. In the gap between two pieces there is nothing.
+    // In a broken picture, find the piece under the pointer and what part of the whole
+    // picture it shows there, then look through that piece: with its camera, and at the
+    // one object it shows if it is tuned to another channel. In a gap there is nothing.
     const broken = brokenLayout();
+    let only = null;
     if (broken) {
-      const original = restore(broken, [clientX, clientY]);
-      if (!original) return null;
-      [clientX, clientY] = original;
+      const found = locate(broken, [clientX, clientY]);
+      if (!found) return null;
+      [clientX, clientY] = found.point;
+      const piece = broken.pieces[found.index];
+      const other = tuned[found.index] ?? null;
+      only = other?.item ?? null;
+      aim(other ? other.camera : viewPos, other ? other.target : viewTarget, piece.view, piece.sway);
     }
     ndc.set((clientX / viewWidth()) * 2 - 1, -(clientY / viewHeight()) * 2 + 1);
     raycaster.setFromCamera(ndc, camera);
     let best = null;
     let bestDistance = Infinity;
     for (const it of clickable) {
-      if (!it.holder.visible || !raycaster.ray.intersectBox(it === featured ? it.soloBox : it.box, hit)) continue;
+      if (only ? it !== only : !it.holder.visible) continue;
+      if (!raycaster.ray.intersectBox(only || it === featured ? it.soloBox : it.box, hit)) continue;
       const d = hit.distanceTo(raycaster.ray.origin);
       if (d < bestDistance) { best = it; bestDistance = d; }
     }
+    if (broken) aim(viewPos, viewTarget);
     return best;
   }
 
@@ -460,11 +532,20 @@ export async function createScene({ canvas, pinLayer, objects, views, stageTop, 
     it.pin = pin;
   }
   const projected = new Vector3();
-  const onScreen = (point) => {
+  const flat = (point) => {
     projected.copy(point).project(camera);
-    const at = [(projected.x * 0.5 + 0.5) * viewWidth(), (-projected.y * 0.5 + 0.5) * viewHeight()];
+    return [(projected.x * 0.5 + 0.5) * viewWidth(), (-projected.y * 0.5 + 0.5) * viewHeight()];
+  };
+  const onScreen = (point) => {
     const broken = brokenLayout();
-    return broken ? displace(broken, at) : at; // a label goes where its piece went
+    if (!broken) return flat(point);
+    // A label goes where its piece went: find the piece, look through it, move with it.
+    const index = sector(broken, flat(point));
+    const piece = broken.pieces[index];
+    aim(viewPos, viewTarget, piece.view, piece.sway);
+    const at = move(broken, index, flat(point));
+    aim(viewPos, viewTarget);
+    return at;
   };
   function placePins() {
     for (const it of clickable) {

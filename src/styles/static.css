@@ -79,7 +79,7 @@ html[data-world='static'] body::after {
    with the channel's light showing in the gaps. Clean cuts, the same every time: damage
    that has plainly been drawn. The pieces are placed by the script (main.js), from the
    same pattern the 3D scene uses (src/lib/fracture.js). */
-.shards, .cracks, .impact { display: none; }
+.shards, .debris, .cracks, .impact { display: none; }
 
 /* The whole screen steps aside for its pieces. */
 html[data-world='static'] .art-set > .screen,
@@ -113,23 +113,50 @@ html[data-world='static'] .shards {
   inset: 0;
   transform:
     translate(calc(var(--dx, 0px) * var(--apart, 1)), calc(var(--dy, 0px) * var(--apart, 1)))
-    rotate(calc(var(--turn, 0deg) * var(--apart, 1)));
+    rotate(calc(var(--turn, 0deg) * var(--apart, 1)))
+    scale(calc(1 + var(--grow, 0) * var(--apart, 1)));
   transition: transform 0.42s var(--boing);
 }
 .art.is-mended .shard { transition: none; }
 .shard > .screen, .shard > .osd { left: 50%; top: 50%; }
 
-/* The cracks themselves, across the whole page: thin, straight, in the channel's colour. */
+/* A piece tuned to another channel carries that channel's accent (data-accent on it). */
+
+/* Loose shards knocked out by the impact. Each is thrown from the impact to its place
+   along a crack when the picture breaks, and then lies still. */
+html[data-world='static'] .debris { display: block; position: absolute; inset: 0; pointer-events: none; }
+.debris i {
+  position: absolute;
+  background: var(--accent);
+  clip-path: polygon(8% 12%, 100% 40%, 30% 100%);
+  transform:
+    translate(calc(var(--dx, 0px) * var(--apart, 1) - 50%), calc(var(--dy, 0px) * var(--apart, 1) - 50%))
+    rotate(calc(var(--turn, 0deg) * var(--apart, 1)))
+    scale(var(--apart, 1));
+  transition: transform 0.5s var(--boing);
+}
+.art.is-mended .debris i { transition: none; }
+.debris i:nth-child(3n) { clip-path: polygon(0 30%, 78% 0, 100% 100%); }
+.debris i:nth-child(3n + 1) { clip-path: polygon(50% 0, 100% 86%, 0 62%); }
+.debris i[data-tone='0'] { background: var(--yellow); }
+.debris i[data-tone='1'] { background: var(--cyan); }
+.debris i[data-tone='2'] { background: var(--magenta); }
+.debris i[data-tone='3'] { background: var(--paper); }
+.debris i[data-tone='4'] { background: var(--acid); }
+.debris i[data-tone='5'] { background: var(--crimson); }
+
+/* The cracks themselves: thin, straight, in the channel's colour. They belong to the art
+   layer, so they stay in the window that shows the objects and never cross the text. */
 html[data-world='static'] .cracks {
   display: block;
-  position: fixed;
+  position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  z-index: 21;
   pointer-events: none;
 }
-.cracks line { stroke: var(--accent); stroke-width: 1.5; opacity: 0.42; }
+.cracks line { stroke: var(--accent); stroke-width: 1.5; opacity: 0.5; }
+.cracks .web { stroke: var(--paper); stroke-width: 1; opacity: 0.38; }
 /* Where it was hit: a ring and a cross, like a registration mark. */
 html[data-world='static'] .impact {
   display: block;
@@ -185,7 +212,7 @@ html[data-world='static'] :is(.drop, .speech, .notice):nth-of-type(odd) { rotate
 html[data-world='static'] :is(.drop, .speech, .notice):nth-of-type(even) { rotate: 0.5deg; translate: 5px 0; }
 
 @media (prefers-reduced-motion: reduce) {
-  .shard { transition: none; }
+  .shard, .debris i { transition: none; }
 }
 
 /* ---------- telling a mode from a fault ---------- */

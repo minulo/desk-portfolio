@@ -332,12 +332,13 @@ test('featureCamera: a quarter turn moves it to +x, and tilting raises it', () =
 });
 
 // ---------- fracture: the cracked-screen pattern of Static mode ----------
-import { CRACKS, fracture, displace, restore } from '../src/lib/fracture.js';
+import { CRACKS, fracture, displace, restore, locate, sector, move, strayChannel } from '../src/lib/fracture.js';
 
 const broken = fracture({ centre: [1000, 500], size: 800 });
 const toRad = (deg) => (deg * Math.PI) / 180;
 /** A point `r` pixels from the impact, in the direction `deg` (clockwise from east, as on screen). */
 const at = (layout, deg, r) => [layout.impact[0] + Math.cos(toRad(deg)) * r, layout.impact[1] + Math.sin(toRad(deg)) * r];
+const apartBy = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 
 test('the cracks cut the full circle into wedges, each narrower than a half turn', () => {
   assert.equal(broken.pieces.length, CRACKS.length);
@@ -350,18 +351,59 @@ test('the cracks cut the full circle into wedges, each narrower than a half turn
   assert.equal(Math.round(total), 360);
 });
 
-test('the point of impact sits near the centre of the picture, scaled with it', () => {
+test('the point of impact is inside the picture but off the object in its middle, and scales with it', () => {
   const small = fracture({ centre: [100, 100], size: 80 });
-  assert.ok(Math.hypot(broken.impact[0] - 1000, broken.impact[1] - 500) < 800 * 0.2);
+  const fromCentre = apartBy(broken.impact, [1000, 500]) / 800;
+  assert.ok(fromCentre > 0.12 && fromCentre < 0.35, `the impact is ${fromCentre.toFixed(2)} of the size from the centre`);
   assert.ok(Math.abs((small.impact[0] - 100) * 10 - (broken.impact[0] - 1000)) < 1e-6);
 });
 
-test('every piece moves away from the impact, so the cracks open instead of closing', () => {
+test('every piece moves away from the impact, turns, and changes size a little: no two alike', () => {
+  const seen = new Set();
   for (const piece of broken.pieces) {
     const middle = toRad((piece.from + piece.to) / 2);
     const outward = piece.offset[0] * Math.cos(middle) + piece.offset[1] * Math.sin(middle);
     assert.ok(outward > 800 * 0.008, `a piece moves ${outward.toFixed(1)}px outward`);
-    assert.ok(Math.abs(piece.turn) > 0.1 && Math.abs(piece.turn) < 3, `a piece turns ${piece.turn} degrees`);
+    assert.ok(Math.abs(piece.turn) > 1 && Math.abs(piece.turn) < 6, `a piece turns ${piece.turn} degrees`);
+    assert.ok(piece.scale > 0.9 && piece.scale < 1.1 && piece.scale !== 1, `a piece is scaled by ${piece.scale}`);
+    seen.add(`${piece.turn}/${piece.scale}/${outward.toFixed(2)}`);
+  }
+  assert.equal(seen.size, broken.pieces.length);
+});
+
+test('each piece sees the picture from its own angle, like a piece of a broken mirror', () => {
+  const views = broken.pieces.map((p) => p.view.join('/'));
+  assert.equal(new Set(views).size, broken.pieces.length, 'every piece has a different view');
+  for (const piece of broken.pieces) {
+    assert.ok(Math.abs(piece.view[0]) >= 3 && Math.abs(piece.view[0]) <= 15, `turned ${piece.view[0]} degrees`);
+    assert.ok(Math.abs(piece.view[1]) >= 1 && Math.abs(piece.view[1]) <= 8, `tilted ${piece.view[1]} degrees`);
+    assert.ok(piece.sway !== 1, 'it answers the pointer by its own amount');
+  }
+  assert.ok(broken.pieces.some((p) => p.sway < 0) && broken.pieces.some((p) => p.sway > 0), 'some pieces move against the others');
+});
+
+test('two pieces are tuned to other channels, and they are not next to each other', () => {
+  const stray = broken.pieces.map((p, i) => (p.stray ? i : -1)).filter((i) => i >= 0);
+  assert.equal(stray.length, 2);
+  const gap = Math.abs(stray[0] - stray[1]);
+  assert.ok(gap > 1 && gap < broken.pieces.length - 1, 'the two pieces share a crack');
+  assert.notEqual(broken.pieces[stray[0]].stray, broken.pieces[stray[1]].stray, 'both are tuned to the same channel');
+});
+
+test('strayChannel names a neighbouring channel, never the opening one and never the same one', () => {
+  // Six sections: the opening one (0) and five channels (1..5).
+  assert.equal(strayChannel(3, 0, 6), 3, 'a piece that is not stray shows the channel itself');
+  assert.equal(strayChannel(3, 1, 6), 4);
+  assert.equal(strayChannel(3, -1, 6), 2);
+  assert.equal(strayChannel(5, 1, 6), 1, 'past the last channel it wraps to the first, not to the opening');
+  assert.equal(strayChannel(1, -1, 6), 5);
+  assert.equal(strayChannel(0, 1, 6), 1, 'from the opening it is the first channel');
+  assert.equal(strayChannel(0, -1, 6), 5, '...or the last');
+  for (let current = 0; current < 6; current++) {
+    for (const stray of [1, -1]) {
+      const other = strayChannel(current, stray, 6);
+      assert.ok(other >= 1 && other <= 5 && other !== current);
+    }
   }
 });
 
@@ -370,26 +412,38 @@ test('with amount 0 nothing has moved, and the pieces fit together again', () =>
   for (const piece of whole.pieces) {
     assert.deepEqual(piece.offset.map((v) => Math.abs(v)), [0, 0]);
     assert.equal(Math.abs(piece.turn), 0);
+    assert.equal(piece.scale, 1);
+    assert.deepEqual(piece.view.map((v) => Math.abs(v)), [0, 0]);
+    assert.equal(piece.sway, 1);
   }
   const point = at(whole, 10, 200);
-  assert.deepEqual(displace(whole, point).map((v) => Math.round(v * 1e6)), point.map((v) => Math.round(v * 1e6)));
+  assert.ok(apartBy(displace(whole, point), point) < 1e-9);
 });
 
 test('a point in a piece moves with it, and can be traced back to where it was', () => {
-  for (const piece of broken.pieces) {
+  broken.pieces.forEach((piece, i) => {
     const point = at(broken, (piece.from + piece.to) / 2, 240);
+    assert.equal(sector(broken, point), i);
     const moved = displace(broken, point);
-    assert.ok(Math.hypot(moved[0] - point[0], moved[1] - point[1]) > 3, 'the point moved');
-    const back = restore(broken, moved);
-    assert.ok(back, 'the moved point is found in a piece');
-    assert.ok(Math.hypot(back[0] - point[0], back[1] - point[1]) < 1e-6);
-  }
+    assert.ok(apartBy(moved, point) > 3, 'the point moved');
+    assert.ok(apartBy(move(broken, i, point), moved) < 1e-9, 'move() with the piece named gives the same place');
+    const found = locate(broken, moved);
+    assert.ok(found, 'the moved point is found in a piece');
+    assert.equal(found.index, i);
+    assert.ok(apartBy(found.point, point) < 1e-6);
+    assert.ok(apartBy(restore(broken, moved), point) < 1e-6);
+  });
 });
 
-test('a point in the gap between two pieces belongs to neither', () => {
-  // On a crack line, well away from the impact: both neighbours have moved off it.
-  const first = broken.pieces[0];
-  assert.equal(restore(broken, at(broken, first.to, 300)), null);
+test('the cracks have opened: somewhere along each one there is a gap that belongs to no piece', () => {
+  for (const piece of broken.pieces) {
+    let gaps = 0;
+    for (let r = 60; r <= 600; r += 20) {
+      for (const lean of [-1.5, -0.5, 0.5, 1.5]) if (!locate(broken, at(broken, piece.from + lean, r))) gaps++;
+    }
+    assert.ok(gaps > 0, `the crack at ${piece.from} degrees has no gap`);
+  }
+  assert.equal(restore(broken, at(fracture({ centre: [1000, 500], size: 800, amount: 0 }), 10, 200)) === null, false);
 });
 
 test('each piece comes with an outline that contains its own points and not its neighbours\'', () => {
@@ -409,4 +463,27 @@ test('each piece comes with an outline that contains its own points and not its 
     assert.ok(inside(piece.polygon, own), 'the outline holds the middle of its piece');
     assert.ok(!inside(piece.polygon, other), 'the outline leaves out the next piece');
   });
+});
+
+test('smaller cracks join each pair of neighbouring cracks, like a web', () => {
+  assert.equal(broken.web.length, broken.pieces.length);
+  broken.web.forEach(([a, b], i) => {
+    const piece = broken.pieces[i];
+    const bearing = (p) => (Math.atan2(p[1] - broken.impact[1], p[0] - broken.impact[0]) * 180) / Math.PI;
+    const same = (x, y) => Math.abs(((x - y + 540) % 360) - 180) < 1e-6;
+    assert.ok(same(bearing(a), piece.from) && same(bearing(b), piece.to), 'it runs from one crack to the next');
+    assert.ok(apartBy(a, broken.impact) > 800 * 0.1 && apartBy(a, broken.impact) < 800 * 0.5);
+  });
+});
+
+test('small shards lie scattered around the impact, inside the picture, in several tones', () => {
+  assert.ok(broken.debris.length >= 10);
+  for (const bit of broken.debris) {
+    assert.ok(apartBy(bit.at, [1000, 500]) < 800 * 0.62, 'a shard lies outside the picture');
+    assert.ok(apartBy(bit.at, broken.impact) > 800 * 0.08, 'a shard sits on the impact');
+    assert.ok(bit.size > 800 * 0.01 && bit.size < 800 * 0.07);
+  }
+  assert.ok(new Set(broken.debris.map((b) => b.tone)).size >= 4);
+  const whole = fracture({ centre: [1000, 500], size: 800, amount: 0 });
+  for (const bit of whole.debris) assert.ok(apartBy(bit.at, whole.impact) < 1e-9, 'before the break the shards are at the impact');
 });

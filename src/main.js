@@ -3,7 +3,7 @@
 // channel, runs the Static (other-world) switch, and loads the 3D scene afterwards as
 // a separate download.
 import { pickActive } from './lib/active-section.js';
-import { fracture } from './lib/fracture.js';
+import { fracture, strayChannel } from './lib/fracture.js';
 
 const html = document.documentElement;
 const sections = [...document.querySelectorAll('main section')];
@@ -20,6 +20,7 @@ const sweep = document.getElementById('sweep');
 const art = document.querySelector('.art');
 const shards = document.getElementById('shards');
 const cracks = document.getElementById('cracks');
+const debris = document.getElementById('debris');
 const impact = document.getElementById('impact');
 const screenFrame = document.querySelector('.art-set > .screen');
 const display = document.querySelector('.art-set > .osd');
@@ -50,21 +51,40 @@ function artRect() {
 
 const cssColour = (name) => parseInt(getComputedStyle(html).getPropertyValue(name).trim().replace('#', ''), 16);
 
+/** The section the art layer is showing. */
+const shownIndex = () => Math.max(0, sections.findIndex((s) => s.id === html.dataset.art));
+
+/**
+ * In Static mode some broken pieces are tuned to other channels. For each piece: the
+ * section it shows, when that is not the one on screen, or null.
+ */
+function tunedPieces() {
+  const current = shownIndex();
+  return fracture({ centre: [0, 0], size: 1 }).pieces.map((piece) => {
+    const other = strayChannel(current, piece.stray, sections.length);
+    return other === current ? null : sections[other];
+  });
+}
+
 function showInScene(animate) {
   scene?.show(html.dataset.art, {
     accent: cssColour('--accent'),
     wall: cssColour('--wall'),
     rect: artRect(),
+    tuned: tunedPieces().map((s) => s && { section: s.id, accent: cssColour(`--${s.dataset.accent}`) }),
     animate,
   });
 }
 
-/** What the on-screen display says for section `i`. With no signal there is no time code. */
-function updateDisplay(i) {
+/** Write what a display says for section `i` into `osd`. With no signal there is no time code. */
+function fillDisplay(osd, i) {
   const s = sections[i];
   const name = (isStatic() && s.dataset.nameStatic) || s.dataset.name;
-  osdChannel.replaceChildren(`CH ${s.dataset.channel} `, Object.assign(document.createElement('b'), { textContent: name }));
-  osdCode.textContent = `MN-${s.dataset.channel} · ${isStatic() ? '-:--:--' : `0:0${i}:00`}`;
+  osd.querySelector('.osd-channel').replaceChildren(`CH ${s.dataset.channel} `, Object.assign(document.createElement('b'), { textContent: name }));
+  osd.querySelector('.osd-code').textContent = `MN-${s.dataset.channel} · ${isStatic() ? '-:--:--' : `0:0${i}:00`}`;
+}
+function updateDisplay(i) {
+  fillDisplay(display, i);
   copyDisplay();
 }
 
@@ -87,10 +107,17 @@ function applyArt(i, animate = true) {
 // along the same lines; and the cracks themselves are drawn across the whole page.
 let breakTimer = 0;
 
-/** Give every piece of the screen the display's current wording. */
+/**
+ * Give every piece of the screen its wording and colour. Most show the channel on
+ * screen; a piece tuned to another channel shows that channel's number in its accent.
+ */
 function copyDisplay() {
-  for (const copy of shards.querySelectorAll('.osd')) copy.innerHTML = display.innerHTML;
-  for (const el of shards.querySelectorAll('[id]')) el.removeAttribute('id');
+  const tuned = tunedPieces();
+  [...shards.children].forEach((piece, i) => {
+    const other = tuned[i];
+    fillDisplay(piece.querySelector('.osd'), other ? sections.indexOf(other) : shownIndex());
+    if (other) piece.dataset.accent = other.dataset.accent; else delete piece.dataset.accent;
+  });
 }
 
 /** Cut the screen along the cracks, for where the art window is now. */
@@ -106,10 +133,16 @@ function layoutBreak() {
       const piece = document.createElement('div');
       piece.className = 'shard';
       piece.append(screenFrame.cloneNode(true), display.cloneNode(true));
+      for (const el of piece.querySelectorAll('[id]')) el.removeAttribute('id');
       shards.append(piece);
     }
-    copyDisplay();
+    for (const bit of layout.debris) {
+      const el = document.createElement('i');
+      el.dataset.tone = String(bit.tone);
+      debris.append(el);
+    }
   }
+  copyDisplay();
   layout.pieces.forEach((piece, i) => {
     const el = shards.children[i];
     el.style.clipPath = `polygon(${piece.polygon.map(local).join(', ')})`;
@@ -117,14 +150,27 @@ function layoutBreak() {
     el.style.setProperty('--dx', `${piece.offset[0].toFixed(2)}px`);
     el.style.setProperty('--dy', `${piece.offset[1].toFixed(2)}px`);
     el.style.setProperty('--turn', `${piece.turn}deg`);
+    el.style.setProperty('--grow', String(piece.scale - 1));
   });
-  // The cracks: straight lines from the impact, long enough to leave any screen.
+  // Loose shards: each starts on the impact and is thrown to its place along a crack.
+  layout.debris.forEach((bit, i) => {
+    const el = debris.children[i];
+    el.style.left = `${layout.impact[0].toFixed(1)}px`;
+    el.style.top = `${layout.impact[1].toFixed(1)}px`;
+    el.style.width = el.style.height = `${bit.size.toFixed(1)}px`;
+    el.style.setProperty('--dx', `${(bit.at[0] - layout.impact[0]).toFixed(1)}px`);
+    el.style.setProperty('--dy', `${(bit.at[1] - layout.impact[1]).toFixed(1)}px`);
+    el.style.setProperty('--turn', `${bit.turn}deg`);
+  });
+  // The cracks: straight lines from the impact, long enough to leave any screen, and a
+  // smaller one across each piece. They are in the art layer, so only the art window
+  // shows them; the text panels lie on top.
   const reach = (window.innerWidth + window.innerHeight) * 2;
+  const line = (a, b, name) => `<line class="${name}" x1="${a[0].toFixed(1)}" y1="${a[1].toFixed(1)}" x2="${b[0].toFixed(1)}" y2="${b[1].toFixed(1)}"/>`;
   cracks.innerHTML = layout.pieces.map((piece) => {
     const angle = (piece.from * Math.PI) / 180;
-    const end = [layout.impact[0] + Math.cos(angle) * reach, layout.impact[1] + Math.sin(angle) * reach];
-    return `<line x1="${layout.impact[0].toFixed(1)}" y1="${layout.impact[1].toFixed(1)}" x2="${end[0].toFixed(1)}" y2="${end[1].toFixed(1)}"/>`;
-  }).join('');
+    return line(layout.impact, [layout.impact[0] + Math.cos(angle) * reach, layout.impact[1] + Math.sin(angle) * reach], 'crack');
+  }).join('') + layout.web.map(([a, b]) => line(a, b, 'web')).join('');
   impact.style.left = `${layout.impact[0].toFixed(1)}px`;
   impact.style.top = `${layout.impact[1].toFixed(1)}px`;
 }
@@ -260,7 +306,7 @@ function setWorld(on) {
     ? 'Static mode is on. The page now shows its dead-channel look, on purpose. Retune, or the Static mode switch, turns it off.'
     : 'Static mode is off.';
 
-  updateDisplay(Math.max(0, sections.findIndex((s) => s.id === html.dataset.art)));
+  updateDisplay(shownIndex());
   playFlip(on ? 'NO SIGNAL' : 'SIGNAL OK', on ? TUNE_MS : FLIP_MS);
   playSweep();
   showInScene(false); // the wall colour changed
@@ -277,7 +323,12 @@ document.getElementById('retune').addEventListener('click', () => {
 // ---------- the 3D scene: loaded after the page is up, and optional ----------
 function webglWorks() {
   try {
-    return !!document.createElement('canvas').getContext('webgl2');
+    const gl = document.createElement('canvas').getContext('webgl2');
+    // This context was only a question. Hand it back at once: browsers allow a limited
+    // number at a time, and left to the garbage collector it would count against the
+    // one the scene is about to ask for.
+    gl?.getExtension('WEBGL_lose_context')?.loseContext();
+    return !!gl;
   } catch {
     return false;
   }
@@ -321,7 +372,10 @@ async function startScene() {
   }
 }
 
-const whenIdle = window.requestIdleCallback ?? ((fn) => setTimeout(fn, 120));
+// After the page is up, when the browser has a quiet moment, but not only then: a page
+// that is perfectly still (reduced motion) may never be told it is idle, so the request
+// carries a deadline.
+const whenIdle = (fn) => (window.requestIdleCallback ? window.requestIdleCallback(fn, { timeout: 1200 }) : setTimeout(fn, 120));
 if (document.readyState === 'complete') whenIdle(startScene);
 else window.addEventListener('load', () => whenIdle(startScene), { once: true });
 

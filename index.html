@@ -30,7 +30,10 @@
         </div>
         <!-- Static mode: the screen above, cut into pieces. Filled in by the script. -->
         <div class="shards" id="shards"></div>
+        <div class="debris" id="debris"></div>
         <canvas id="scene"></canvas>
+        <!-- The cracks are part of the art layer, so the text panels cover them. -->
+        <svg class="cracks" id="cracks" aria-hidden="true" focusable="false"></svg>
         <i class="impact" id="impact"></i>
         <i class="art-probe" id="art-probe"></i>
       </div>
@@ -59,8 +62,6 @@
     </div>
     <p class="sr-only" id="world-status" role="status"></p>
     <div class="sweep" id="sweep" aria-hidden="true"></div>
-    <!-- Static mode: the cracks, drawn across the whole page from the point of impact. -->
-    <svg class="cracks" id="cracks" aria-hidden="true" focusable="false"></svg>
 
     <main>
       <!-- ============ INTRO ============ -->

@@ -47,7 +47,7 @@ drawing, and a 13 MB icon library downloaded in dev mode. This version keeps the
 rules that fixed that.
 
 - **Text first.** All content is plain HTML and CSS. It is on screen before any
-  script runs: about 5 KB of HTML, 7 KB of CSS and 4 KB of script, compressed.
+  script runs: about 5 KB of HTML, 8 KB of CSS and 5 KB of script, compressed.
 - **3D afterwards.** three.js is a separate download that starts once the page is
   up. If it fails, or the browser has no WebGL, the page is still complete.
 - **One pass.** The scene is drawn with three small shaders and no
@@ -70,11 +70,11 @@ not frame times:
 |---|---|---|---|
 | Render passes per frame | 18 | 27 | 1 |
 | Megapixels shaded per frame | 23.9 | 51.3 | 4.5 |
-| Draw calls per frame | 64 | 141 | 31 on the opening view, 7 on a channel; seven times that in Static mode |
+| Draw calls per frame | 64 | 141 | 31 on the opening view, 7 on a channel. In Static mode, drawn once per piece: 169 and 49 |
 | Shader programs compiled | 30 | 40 | 3 |
 | Frames drawn while idle | every frame | every frame | 0, in Static mode too |
-| Script up front (gzip) | 274 KB | 295 KB | 4.2 KB |
-| Script in total (gzip) | 274 KB | 295 KB | about 176 KB, 21 KB of it only when a model file is configured |
+| Script up front (gzip) | 274 KB | 295 KB | 5.0 KB |
+| Script in total (gzip) | 274 KB | 295 KB | about 177 KB, 21 KB of it only when a model file is configured |
 
 `npm test` enforces these as limits, so a change that brings the cost back fails.
 
@@ -103,23 +103,42 @@ television) sets `data-world="static"` on `<html>`. Everything in
 into two colours, scanlines over the page. This is the only place glow is allowed.
 
 Static is a cracked screen, and it is meant to look broken. What keeps it from
-looking like a fault is that the damage is plainly drawn:
+looking like a fault is that the damage is plainly drawn. The window that shows the
+objects takes the hit and is chaos; the text beside it is broken too, but stays easy
+to read, and no crack runs across it.
+
+In the window that shows the objects:
 
 | | How |
 |---|---|
-| One pattern, the same every time | Seven straight cracks run from one point of impact, marked with a ring and a cross. `src/lib/fracture.js` holds the pattern |
-| Rigid pieces, clean cuts | The screen frame and the 3D picture are cut along the same cracks into wedges. Each wedge moves a little outward and turns slightly, and stays in one piece |
+| One pattern, the same every time | Seven straight cracks run from one point of impact up in a corner, marked with a ring and a cross, with a smaller crack across each piece. `src/lib/fracture.js` holds the pattern |
+| Rigid pieces, clean cuts | The screen frame and the 3D picture are cut along the same cracks into wedges. Each wedge moves outward, turns and is drawn a little larger or smaller, and stays in one piece |
+| A broken mirror | Each piece shows the scene from its own angle, and follows the pointer by its own amount, some of them the wrong way |
+| Other channels bleed through | Two pieces are tuned to the channels either side: they show that channel's object, number and accent. Clicking one goes there |
 | Light in the gaps | A plate in the channel's accent sits behind the pieces and shows only between them |
-| The whole page shares the break | The cracks carry on across the page as thin lines. Headlines break into their words, each knocked out of line with a corner gone and that corner lying below it. Cards sit slightly out of true |
-| It breaks, then holds | The pieces fit together under a burst of static with a large NO SIGNAL, then snap apart with a little overshoot. After that nothing moves |
+| Loose shards | Sixteen small triangles are thrown from the impact along the cracks when the picture breaks, and then lie still |
+
+On the text side:
+
+| | How |
+|---|---|
+| Headlines | They break into their words, each knocked out of line with a corner gone and that corner lying below it |
+| Cards | They sit slightly out of true |
+| No cracks | The crack lines belong to the art layer, so the text panels cover them |
+
+And for the whole page:
+
+| | How |
+|---|---|
+| It breaks, then holds | The pieces fit together under a burst of static with a large NO SIGNAL, then snap apart with a little overshoot. After that nothing moves unless the pointer does |
 | The world rewords itself | The display reads `NO SIGNAL` with no time code, the station tab and the opening label read `OFF AIR`, and the television's label changes from Static to Retune |
 | A note names it | A strip of paper tape, the one clean thing on the page: `NO SIGNAL · DEAD CHANNEL`, a Retune button, and for the first seven seconds one line in the station's voice |
 | Screen readers are told plainly | A status message says the mode is on, that it is on purpose, and how to turn it off |
 
 The 3D scene breaks without an extra pass: it is drawn once per piece into the same
-canvas, each time moved as one rigid sheet and trimmed to its wedge by the same three
-shaders. Clicks are traced back through the piece under the pointer, so an object is
-still found where it is drawn.
+canvas, each time with that piece's camera, object and colour, moved as one rigid
+sheet and trimmed to its wedge by the same three shaders. Clicks are traced back
+through the piece under the pointer, so an object is found where it is drawn.
 
 Wording that differs between the modes is in the page twice, marked `when-clean` and
 `when-static`; the stylesheet shows one.
